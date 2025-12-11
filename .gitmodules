@@ -1,0 +1,19 @@
+[submodule "vendors/glm"]
+	path = vendors/glm
+	url = https://github.com/Rounak-Paul/glm.git
+[submodule "vendors/glfw"]
+	path = vendors/glfw
+	url = https://github.com/Rounak-Paul/glfw.git
+[submodule "vendors/vma"]
+	path = vendors/vma
+	url = https://github.com/Rounak-Paul/VulkanMemoryAllocator.git
+[submodule "vendors/imgui/imgui"]
+	path = vendors/imgui/imgui
+	url = https://github.com/Rounak-Paul/imgui.git
+	branch = docking
+[submodule "vendors/json"]
+	path = vendors/json
+	url = https://github.com/Rounak-Paul/json.git
+[submodule "vendors/stb"]
+	path = vendors/stb
+	url = https://github.com/Rounak-Paul/stb.git
