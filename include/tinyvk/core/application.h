@@ -40,7 +40,8 @@ struct AppConfig {
     u32 width = 1280;
     u32 height = 720;
     bool vsync = true;
-    AppMode mode = AppMode::Hybrid;  // Default to most flexible mode
+    AppMode mode = AppMode::Hybrid;
+    bool enableDockspace = true;
 };
 
 // Legacy alias
@@ -178,6 +179,7 @@ private:
     std::vector<RenderWidget*> _widgets;
     
     AppMode _mode = AppMode::Hybrid;
+    bool _enableDockspace = true;
 
     bool _running = false;
     float _deltaTime = 0.0f;

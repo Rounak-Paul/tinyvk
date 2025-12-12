@@ -205,7 +205,7 @@ private:
     VkCommandPool _commandPool = VK_NULL_HANDLE;
     
     // Clear color
-    std::array<float, 4> _clearColor = {0.1f, 0.1f, 0.15f, 1.0f};
+    std::array<float, 4> _clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
     
     u32 _width = 800;
     u32 _height = 600;

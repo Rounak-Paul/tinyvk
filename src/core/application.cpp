@@ -52,6 +52,7 @@ void App::Initialize(const AppConfig& config) {
     TVK_LOG_INFO("Initializing TinyVK Application: {}", config.title);
     
     _mode = config.mode;
+    _enableDockspace = config.enableDockspace;
 
     WindowConfig windowConfig;
     windowConfig.title = config.title;
@@ -161,7 +162,16 @@ void App::MainLoop() {
             // GUI mode: render ImGui interface
             if (_mode == AppMode::GUI || _mode == AppMode::Hybrid) {
                 _imguiLayer->Begin();
+                
+                if (_enableDockspace) {
+                    _imguiLayer->BeginDockspace();
+                }
+                
                 OnUI();
+                
+                if (_enableDockspace) {
+                    _imguiLayer->EndDockspace();
+                }
                 
                 for (auto* widget : _widgets) {
                     if (widget->IsEnabled()) {

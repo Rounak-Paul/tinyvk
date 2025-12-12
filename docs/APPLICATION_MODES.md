@@ -75,7 +75,7 @@ Renderer* renderer = app.GetRenderer();
 VkCommandBuffer cmd = app.GetCommandBuffer();
 
 // Set clear color
-app.SetClearColor(0.2f, 0.3f, 0.4f);
+app.SetClearColor(0.1f, 0.1f, 0.1f);
 
 // Access Vulkan context
 VulkanContext& ctx = app.GetContext();

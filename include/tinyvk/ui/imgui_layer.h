@@ -77,6 +77,18 @@ public:
     bool WantsCaptureKeyboard() const;
     bool WantsCaptureMouse() const;
 
+    /**
+     * @brief Begin a fullscreen dockspace
+     * Call this at the start of OnUI() before creating any windows
+     */
+    void BeginDockspace();
+
+    /**
+     * @brief End the fullscreen dockspace
+     * Call this at the end of OnUI() after all windows
+     */
+    void EndDockspace();
+
 private:
     void SetupStyle();
 

@@ -31,7 +31,7 @@ protected:
         if (_coneMesh) TVK_LOG_INFO("  Cone: {} vertices, {} indices", _coneMesh->GetVertexCount(), _coneMesh->GetIndexCount());
         if (_torusMesh) TVK_LOG_INFO("  Torus: {} vertices, {} indices", _torusMesh->GetVertexCount(), _torusMesh->GetIndexCount());
         
-        SetClearColor(0.2f, 0.3f, 0.4f, 1.0f);
+        SetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         
         _pipeline = tvk::CreateScope<tvk::Pipeline>();
         if (!_pipeline->Create(GetRenderer(), GetRenderPass(), tvk::shaders::basic_vert, tvk::shaders::basic_frag)) {
@@ -120,8 +120,7 @@ protected:
         _gameViewport = tvk::CreateScope<GameViewport>();
         RegisterWidget(_gameViewport.get());
         
-        // Set a clear color for game rendering
-        SetClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+        SetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
     void OnUpdate() override {
@@ -225,8 +224,6 @@ protected:
 
             ImGui::End();
         }
-
-        SetupDockspace();
     }
 
     void OnStop() override {
@@ -252,35 +249,6 @@ private:
                 _loadedTexture.reset();
             }
         }
-    }
-
-    void SetupDockspace() {
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->WorkPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
-        ImGui::SetNextWindowViewport(viewport->ID);
-
-        ImGuiWindowFlags windowFlags =
-            ImGuiWindowFlags_NoDocking |
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoBringToFrontOnFocus |
-            ImGuiWindowFlags_NoNavFocus |
-            ImGuiWindowFlags_NoBackground;
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-
-        ImGui::Begin("DockSpace", nullptr, windowFlags);
-        ImGui::PopStyleVar(3);
-
-        ImGuiID dockspaceId = ImGui::GetID("MainDockSpace");
-        ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-
-        ImGui::End();
     }
 
     bool _showDemoWindow = false;
