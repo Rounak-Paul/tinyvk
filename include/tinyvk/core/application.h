@@ -12,145 +12,141 @@
 
 namespace tvk {
 
-// Forward declarations
+// Forward declarations (internal - users don't need these)
 class Renderer;
 class ImGuiLayer;
 
 /**
  * @brief Application configuration
  */
-struct ApplicationConfig {
-    std::string name = "TinyVK Application";
-    u32 windowWidth = 1280;
-    u32 windowHeight = 720;
-    bool enableValidation = true;
+struct AppConfig {
+    std::string title = "TinyVK Application";
+    u32 width = 1280;
+    u32 height = 720;
     bool vsync = true;
 };
+
+// Legacy alias
+using ApplicationConfig = AppConfig;
 
 /**
  * @brief Base application class - inherit from this to create your app
  * 
+ * All engine internals (Vulkan, swapchain, render loop) are hidden.
+ * Just override OnUI() to draw your ImGui interface.
+ * 
  * Example:
  * @code
- * class MyApp : public tvk::Application {
- * public:
- *     MyApp(const tvk::ApplicationConfig& config) : Application(config) {}
- *     
- *     void OnInit() override { }
- *     void OnUpdate(float dt) override { }
- *     void OnRender() override { }
- *     void OnImGui() override { }
- *     void OnShutdown() override { }
+ * class MyApp : public tvk::App {
+ * protected:
+ *     void OnUI() override {
+ *         ImGui::Begin("My Window");
+ *         if (ImGui::Button("Click me!")) {
+ *             // Handle click
+ *         }
+ *         ImGui::End();
+ *     }
  * };
  * 
  * int main() {
- *     tvk::ApplicationConfig config;
- *     config.name = "My App";
- *     MyApp app(config);
- *     app.Run();
+ *     MyApp app;
+ *     app.Run("My App", 1280, 720);
  *     return 0;
  * }
  * @endcode
  */
-class Application {
+class App {
 public:
-    Application(const ApplicationConfig& config = ApplicationConfig{});
-    virtual ~Application();
+    App();
+    virtual ~App();
 
-    // Non-copyable, non-movable
-    Application(const Application&) = delete;
-    Application& operator=(const Application&) = delete;
+    App(const App&) = delete;
+    App& operator=(const App&) = delete;
 
     /**
-     * @brief Run the main application loop
+     * @brief Run the application
      */
-    void Run();
+    void Run(const std::string& title = "TinyVK App", u32 width = 1280, u32 height = 720, bool vsync = true);
+    void Run(const AppConfig& config);
 
     /**
      * @brief Request application to quit
      */
-    void Quit();
+    void Quit() { _running = false; }
 
     /**
-     * @brief Get the application instance (singleton)
+     * @brief Get the running application instance
      */
-    static Application* Get() { return s_Instance; }
+    static App* Get() { return _instance; }
 
-    /**
-     * @brief Get the window
-     */
-    Window& GetWindow() { return *m_Window; }
-
-    /**
-     * @brief Get the renderer
-     */
-    Renderer& GetRenderer();
-
-    /**
-     * @brief Get delta time in seconds
-     */
-    float GetDeltaTime() const { return m_DeltaTime; }
-
-    /**
-     * @brief Get elapsed time since start in seconds
-     */
-    float GetElapsedTime() const { return m_ElapsedTime; }
-
-    /**
-     * @brief Get current FPS
-     */
-    float GetFPS() const { return m_FPS; }
+    // Timing info
+    float DeltaTime() const { return _deltaTime; }
+    float ElapsedTime() const { return _elapsedTime; }
+    float FPS() const { return _fps; }
+    
+    // Window info
+    u32 WindowWidth() const;
+    u32 WindowHeight() const;
+    const std::string& WindowTitle() const;
+    
+    // Texture loading helper
+    Ref<class Texture> LoadTexture(const std::string& path);
 
 protected:
     /**
-     * @brief Called once after initialization
+     * @brief Called once at startup - override to initialize your app
      */
-    virtual void OnInit() {}
+    virtual void OnStart() {}
 
     /**
-     * @brief Called every frame with delta time
+     * @brief Called every frame - override to update your app logic
      */
-    virtual void OnUpdate(float dt) {}
+    virtual void OnUpdate() {}
 
     /**
-     * @brief Called every frame for rendering
+     * @brief Called every frame - override to draw your ImGui UI
+     * This is where you write all your ImGui code
      */
-    virtual void OnRender() {}
+    virtual void OnUI() {}
 
     /**
-     * @brief Called every frame for ImGui rendering
+     * @brief Called once at shutdown - override to cleanup
      */
-    virtual void OnImGui() {}
-
-    /**
-     * @brief Called before shutdown
-     */
-    virtual void OnShutdown() {}
-
-    /**
-     * @brief Called when window is resized
-     */
-    virtual void OnResize(u32 width, u32 height) {}
+    virtual void OnStop() {}
 
 private:
-    void Initialize();
+    void Initialize(const AppConfig& config);
     void Shutdown();
     void MainLoop();
 
-    static inline Application* s_Instance = nullptr;
+    static inline App* _instance = nullptr;
 
-    ApplicationConfig m_Config;
-    Scope<Window> m_Window;
-    Scope<Renderer> m_Renderer;
-    Scope<ImGuiLayer> m_ImGuiLayer;
+    Scope<Window> _window;
+    Scope<Renderer> _renderer;
+    Scope<ImGuiLayer> _imguiLayer;
 
-    bool m_Running = false;
-    float m_DeltaTime = 0.0f;
-    float m_ElapsedTime = 0.0f;
-    float m_FPS = 0.0f;
+    bool _running = false;
+    float _deltaTime = 0.0f;
+    float _elapsedTime = 0.0f;
+    float _fps = 0.0f;
 
-    std::chrono::high_resolution_clock::time_point m_LastFrameTime;
-    std::chrono::high_resolution_clock::time_point m_StartTime;
+    std::chrono::high_resolution_clock::time_point _lastFrameTime;
+    std::chrono::high_resolution_clock::time_point _startTime;
 };
 
+// Legacy alias
+using Application = App;
+
 } // namespace tvk
+
+/**
+ * @brief Convenience macro to create main() function
+ * 
+ * Usage: TVK_MAIN(MyAppClass, "Window Title", 1280, 720)
+ */
+#define TVK_MAIN(AppClass, title, width, height) \
+    int main() { \
+        AppClass app; \
+        app.Run(title, width, height); \
+        return 0; \
+    }

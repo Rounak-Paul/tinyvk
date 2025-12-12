@@ -5,52 +5,24 @@
 
 #include <tinyvk/tinyvk.h>
 #include <imgui.h>
-#include <memory>
 
-class SandboxApp : public tvk::Application {
-public:
-    SandboxApp(const tvk::ApplicationConfig& config) : Application(config) {}
-
+class SandboxApp : public tvk::App {
 protected:
-    void OnInit() override {
-        TVK_LOG_INFO("Sandbox application initialized!");
-        
-        // Set a nice clear color
-        GetRenderer().SetClearColor({0.1f, 0.1f, 0.12f, 1.0f});
+    void OnStart() override {
+        TVK_LOG_INFO("Sandbox application started!");
     }
 
-    void OnUpdate(float dt) override {
-        TVK_PROFILE_FUNCTION();
-        
-        // Handle input
+    void OnUpdate() override {
         if (tvk::Input::IsKeyPressed(tvk::Key::Escape)) {
             Quit();
         }
-
-        // Rotate color over time
-        m_Time += dt;
-        
-        // Update frame timer
-        m_FrameTimer.beginFrame();
     }
 
-    void OnRender() override {
-        TVK_PROFILE_SCOPE("Render");
-        // Custom rendering would go here
-        // For now, we just clear the screen and let ImGui render
-        
-        m_FrameTimer.endFrame();
-    }
-
-    void OnImGui() override {
-        TVK_PROFILE_SCOPE("ImGui");
-        
-        // Demo window
-        if (m_ShowDemoWindow) {
-            ImGui::ShowDemoWindow(&m_ShowDemoWindow);
+    void OnUI() override {
+        if (_showDemoWindow) {
+            ImGui::ShowDemoWindow(&_showDemoWindow);
         }
 
-        // Main menu bar
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("Open Image...", "Ctrl+O")) {
@@ -63,140 +35,110 @@ protected:
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("View")) {
-                ImGui::MenuItem("ImGui Demo", nullptr, &m_ShowDemoWindow);
-                ImGui::MenuItem("Stats", nullptr, &m_ShowStats);
-                ImGui::MenuItem("Profiler", nullptr, &m_ShowProfiler);
-                ImGui::MenuItem("Image Viewer", nullptr, &m_ShowImageViewer);
-                ImGui::MenuItem("Settings", nullptr, &m_ShowSettings);
+                ImGui::MenuItem("ImGui Demo", nullptr, &_showDemoWindow);
+                ImGui::MenuItem("Stats", nullptr, &_showStats);
+                ImGui::MenuItem("Image Viewer", nullptr, &_showImageViewer);
+                ImGui::MenuItem("Settings", nullptr, &_showSettings);
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
         }
 
-        // Stats window
-        if (m_ShowStats) {
-            ImGui::Begin("Statistics", &m_ShowStats);
-            ImGui::Text("FPS: %.1f", m_FrameTimer.getFPS());
-            ImGui::Text("Frame Time: %.3f ms", m_FrameTimer.getDeltaTimeMs());
-            ImGui::Text("Avg Frame Time: %.3f ms", m_FrameTimer.getAverageFrameTimeMs());
-            
-            // Frame time graph
-            const auto& history = m_FrameTimer.getFrameTimeHistory();
-            if (!history.empty()) {
-                ImGui::PlotLines("Frame Times", history.data(), 
-                    static_cast<int>(history.size()), 0, nullptr, 0.0f, 33.3f, ImVec2(0, 60));
-            }
-            
+        if (_showStats) {
+            ImGui::Begin("Statistics", &_showStats);
+            ImGui::Text("FPS: %.1f", FPS());
+            ImGui::Text("Frame Time: %.3f ms", DeltaTime() * 1000.0f);
+            ImGui::Text("Elapsed: %.1f s", ElapsedTime());
             ImGui::Separator();
-            
-            auto& renderer = GetRenderer();
-            ImGui::Text("Swapchain Images: %u", renderer.GetSwapchainImageCount());
-            
-            auto extent = renderer.GetSwapchainExtent();
-            ImGui::Text("Resolution: %ux%u", extent.width, extent.height);
-            
+            ImGui::Text("Window: %ux%u", WindowWidth(), WindowHeight());
             ImGui::Separator();
             auto mousePos = tvk::Input::GetMousePosition();
             ImGui::Text("Mouse: (%.0f, %.0f)", mousePos.x, mousePos.y);
             ImGui::End();
         }
-        
-        // Profiler window
-        if (m_ShowProfiler) {
-            ImGui::Begin("Profiler", &m_ShowProfiler);
-            
-            auto stats = tvk::Profiler::instance().getAllStats();
-            if (stats.empty()) {
-                ImGui::TextDisabled("No profile data yet...");
-            } else {
-                ImGui::Columns(5, "ProfileColumns");
-                ImGui::Text("Name"); ImGui::NextColumn();
-                ImGui::Text("Last (ms)"); ImGui::NextColumn();
-                ImGui::Text("Avg (ms)"); ImGui::NextColumn();
-                ImGui::Text("Min (ms)"); ImGui::NextColumn();
-                ImGui::Text("Max (ms)"); ImGui::NextColumn();
-                ImGui::Separator();
-                
-                for (const auto& stat : stats) {
-                    ImGui::Text("%s", stat.name.c_str()); ImGui::NextColumn();
-                    ImGui::Text("%.3f", stat.lastTime); ImGui::NextColumn();
-                    ImGui::Text("%.3f", stat.avgTime); ImGui::NextColumn();
-                    ImGui::Text("%.3f", stat.minTime); ImGui::NextColumn();
-                    ImGui::Text("%.3f", stat.maxTime); ImGui::NextColumn();
-                }
-                ImGui::Columns(1);
-            }
-            
-            if (ImGui::Button("Reset Stats")) {
-                tvk::Profiler::instance().reset();
-            }
-            
-            ImGui::End();
-        }
-        
-        // Image viewer window
-        if (m_ShowImageViewer) {
-            ImGui::Begin("Image Viewer", &m_ShowImageViewer);
-            
+
+        if (_showImageViewer) {
+            ImGui::Begin("Image Viewer", &_showImageViewer);
+
             if (ImGui::Button("Open Image...")) {
                 OpenImageFile();
             }
-            
+
             ImGui::SameLine();
-            if (m_LoadedTexture && ImGui::Button("Clear")) {
-                m_LoadedTexture.reset();
-                m_ImagePath.clear();
+            if (_loadedTexture && ImGui::Button("Clear")) {
+                _loadedTexture.reset();
+                _imagePath.clear();
             }
-            
+
             ImGui::Separator();
-            
-            if (m_LoadedTexture) {
-                ImGui::Text("File: %s", m_ImagePath.c_str());
-                ImGui::Text("Size: %ux%u", m_LoadedTexture->GetWidth(), m_LoadedTexture->GetHeight());
-                ImGui::Text("Channels: %u", m_LoadedTexture->GetChannels());
-                ImGui::Text("Mip Levels: %u", m_LoadedTexture->GetMipLevels());
+
+            if (_loadedTexture) {
+                ImGui::Text("File: %s", _imagePath.c_str());
+                ImGui::Text("Size: %ux%u", _loadedTexture->GetWidth(), _loadedTexture->GetHeight());
                 
-                ImGui::Separator();
-                
-                // Display the image
-                tvk::ui::ImageFitWidth(m_LoadedTexture);
+                float availWidth = ImGui::GetContentRegionAvail().x;
+                float aspect = static_cast<float>(_loadedTexture->GetWidth()) / 
+                               static_cast<float>(_loadedTexture->GetHeight());
+                ImVec2 size(availWidth, availWidth / aspect);
+                ImGui::Image(_loadedTexture->GetImGuiTextureID(), size);
             } else {
-                ImGui::TextDisabled("No image loaded. Click 'Open Image...' to load one.");
+                ImGui::TextDisabled("No image loaded.");
             }
-            
+
             ImGui::End();
         }
 
-        // Settings window
-        if (m_ShowSettings) {
-            ImGui::Begin("Settings", &m_ShowSettings);
-            
-            if (ImGui::CollapsingHeader("Clear Color", ImGuiTreeNodeFlags_DefaultOpen)) {
-                if (ImGui::ColorEdit4("Color", &m_ClearColor.r)) {
-                    GetRenderer().SetClearColor(m_ClearColor);
-                }
-            }
-            
+        if (_showSettings) {
+            ImGui::Begin("Settings", &_showSettings);
+
             if (ImGui::CollapsingHeader("About", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Text("TinyVK Version: %s", tvk::GetVersionString());
-                ImGui::Text("A lightweight Vulkan renderer");
+                ImGui::Text("A lightweight Vulkan renderer with ImGui");
                 ImGui::Separator();
                 ImGui::TextWrapped(
                     "TinyVK provides a simple API for creating Vulkan applications "
                     "with ImGui integration. Perfect for tools, editors, and prototyping."
                 );
             }
-            
+
             ImGui::End();
         }
 
-        // Dockspace (optional, for docking windows)
+        SetupDockspace();
+    }
+
+    void OnStop() override {
+        TVK_LOG_INFO("Sandbox application stopped");
+        _loadedTexture.reset();
+    }
+
+private:
+    void OpenImageFile() {
+        auto result = tvk::FileDialog::OpenFile(
+            {{"Image Files", "png,jpg,jpeg,bmp,tga"}},
+            ""
+        );
+
+        if (result.has_value()) {
+            _loadedTexture = LoadTexture(result.value());
+            if (_loadedTexture && _loadedTexture->IsValid()) {
+                _loadedTexture->BindToImGui();
+                _imagePath = result.value();
+                TVK_LOG_INFO("Loaded texture: {}", _imagePath);
+            } else {
+                TVK_LOG_ERROR("Failed to load texture: {}", result.value());
+                _loadedTexture.reset();
+            }
+        }
+    }
+
+    void SetupDockspace() {
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->WorkPos);
         ImGui::SetNextWindowSize(viewport->WorkSize);
         ImGui::SetNextWindowViewport(viewport->ID);
 
-        ImGuiWindowFlags windowFlags = 
+        ImGuiWindowFlags windowFlags =
             ImGuiWindowFlags_NoDocking |
             ImGuiWindowFlags_NoTitleBar |
             ImGuiWindowFlags_NoCollapse |
@@ -209,80 +151,32 @@ protected:
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        
+
         ImGui::Begin("DockSpace", nullptr, windowFlags);
         ImGui::PopStyleVar(3);
 
         ImGuiID dockspaceId = ImGui::GetID("MainDockSpace");
         ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-        
+
         ImGui::End();
     }
 
-    void OnShutdown() override {
-        TVK_LOG_INFO("Sandbox application shutting down");
-        m_LoadedTexture.reset();
-    }
+    bool _showDemoWindow = false;
+    bool _showStats = true;
+    bool _showSettings = true;
+    bool _showImageViewer = true;
 
-    void OnResize(tvk::u32 width, tvk::u32 height) override {
-        TVK_LOG_INFO("Window resized to {}x{}", width, height);
-    }
-
-private:
-    void OpenImageFile() {
-        auto result = tvk::FileDialog::OpenFile(
-            {{"Image Files", "png,jpg,jpeg,bmp,tga"}},
-            ""
-        );
-        
-        if (result.has_value()) {
-            LoadTexture(result.value());
-        }
-    }
-    
-    void LoadTexture(const std::string& path) {
-        TVK_PROFILE_SCOPE("LoadTexture");
-        
-        m_LoadedTexture = tvk::Texture::LoadFromFile(&GetRenderer(), path);
-        
-        if (m_LoadedTexture && m_LoadedTexture->IsValid()) {
-            m_LoadedTexture->BindToImGui();
-            m_ImagePath = path;
-            TVK_LOG_INFO("Loaded texture: {}", path);
-        } else {
-            TVK_LOG_ERROR("Failed to load texture: {}", path);
-            m_LoadedTexture.reset();
-        }
-    }
-
-    float m_Time = 0.0f;
-    bool m_ShowDemoWindow = false;
-    bool m_ShowStats = true;
-    bool m_ShowSettings = true;
-    bool m_ShowProfiler = false;
-    bool m_ShowImageViewer = true;
-    tvk::Color m_ClearColor = {0.1f, 0.1f, 0.12f, 1.0f};
-    
-    tvk::FrameTimer m_FrameTimer;
-    tvk::Ref<tvk::Texture> m_LoadedTexture;
-    std::string m_ImagePath;
+    tvk::Ref<tvk::Texture> _loadedTexture;
+    std::string _imagePath;
 };
 
 int main() {
-    tvk::ApplicationConfig config;
-    config.name = "TinyVK Sandbox";
-    config.windowWidth = 1280;
-    config.windowHeight = 720;
-    config.enableValidation = true;
-    config.vsync = true;
-
     try {
-        SandboxApp app(config);
-        app.Run();
+        SandboxApp app;
+        app.Run("TinyVK Sandbox", 1280, 720);
     } catch (const std::exception& e) {
         TVK_LOG_FATAL("Exception: {}", e.what());
         return EXIT_FAILURE;
     }
-
     return EXIT_SUCCESS;
 }

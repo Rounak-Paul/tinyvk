@@ -4,6 +4,7 @@
  */
 
 #include "tinyvk/renderer/renderer.h"
+#include "tinyvk/renderer/texture.h"
 #include "tinyvk/core/window.h"
 #include "tinyvk/core/log.h"
 
@@ -675,6 +676,10 @@ VkFormat Renderer::FindSupportedFormat(const std::vector<VkFormat>& candidates, 
 
     TVK_LOG_ERROR("Failed to find supported format");
     return candidates[0];
+}
+
+Ref<Texture> Renderer::CreateTexture(const std::string& path) {
+    return Texture::LoadFromFile(this, path);
 }
 
 } // namespace tvk

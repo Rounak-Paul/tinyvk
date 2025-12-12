@@ -9,6 +9,7 @@
 #include "context.h"
 #include <vulkan/vulkan.h>
 #include <vector>
+#include <string>
 
 struct GLFWwindow;
 
@@ -17,6 +18,7 @@ namespace tvk {
 // Forward declarations
 class Window;
 class ImGuiLayer;
+class Texture;
 
 /**
  * @brief Renderer configuration
@@ -120,6 +122,11 @@ public:
      * @brief Get render pass
      */
     VkRenderPass GetRenderPass() const { return m_RenderPass; }
+
+    /**
+     * @brief Create a texture from file
+     */
+    Ref<Texture> CreateTexture(const std::string& path);
 
 private:
     bool CreateSwapchain();

@@ -1,30 +1,40 @@
 /**
  * @file tinyvk.h
- * @brief Main header for TinyVK - A lightweight Vulkan renderer with ImGui and GLFW
+ * @brief Main header for TinyVK - A lightweight application framework with ImGui
  * 
- * Include this single header to use the TinyVK library.
+ * TinyVK provides a simple API for creating GUI applications. The engine handles
+ * all Vulkan/rendering internals - you just write ImGui code.
+ * 
+ * Example:
+ * @code
+ * #include <tinyvk/tinyvk.h>
+ * #include <imgui.h>
+ * 
+ * class MyApp : public tvk::App {
+ * protected:
+ *     void OnUI() override {
+ *         ImGui::Begin("Hello");
+ *         ImGui::Text("Hello, World!");
+ *         ImGui::End();
+ *     }
+ * };
+ * 
+ * TVK_MAIN(MyApp, "My Application", 1280, 720)
+ * @endcode
  */
 
 #pragma once
 
-// Core
+// Core - User-facing API
 #include "core/application.h"
-#include "core/window.h"
 #include "core/input.h"
 #include "core/log.h"
 #include "core/types.h"
 #include "core/timer.h"
 #include "core/file_dialog.h"
 
-// Renderer
-#include "renderer/renderer.h"
-#include "renderer/context.h"
+// Texture loading (for displaying images in ImGui)
 #include "renderer/texture.h"
-#include "renderer/buffer.h"
-
-// UI
-#include "ui/imgui_layer.h"
-#include "ui/widgets.h"
 
 // Version info
 #define TINYVK_VERSION_MAJOR 1
@@ -33,10 +43,6 @@
 
 namespace tvk {
 
-/**
- * @brief Get the version string of TinyVK
- * @return Version string in format "major.minor.patch"
- */
 inline const char* GetVersionString() {
     return "1.0.0";
 }

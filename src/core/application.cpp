@@ -1,8 +1,3 @@
-/**
- * @file application.cpp
- * @brief Application implementation
- */
-
 #include "tinyvk/core/application.h"
 #include "tinyvk/core/input.h"
 #include "tinyvk/core/log.h"
@@ -11,154 +6,155 @@
 
 namespace tvk {
 
-Application::Application(const ApplicationConfig& config) : m_Config(config) {
-    if (s_Instance != nullptr) {
+App::App() = default;
+
+App::~App() {
+    _instance = nullptr;
+}
+
+void App::Run(const std::string& title, u32 width, u32 height, bool vsync) {
+    AppConfig config;
+    config.title = title;
+    config.width = width;
+    config.height = height;
+    config.vsync = vsync;
+    Run(config);
+}
+
+void App::Run(const AppConfig& config) {
+    if (_instance != nullptr) {
         TVK_LOG_FATAL("Application already exists!");
         return;
     }
-    s_Instance = this;
+    _instance = this;
+
+    Initialize(config);
+    OnStart();
+
+    _running = true;
+    MainLoop();
+
+    OnStop();
+    Shutdown();
 }
 
-Application::~Application() {
-    s_Instance = nullptr;
-}
+void App::Initialize(const AppConfig& config) {
+    TVK_LOG_INFO("Initializing TinyVK Application: {}", config.title);
 
-void Application::Initialize() {
-    TVK_LOG_INFO("Initializing TinyVK Application: {}", m_Config.name);
-
-    // Create window
     WindowConfig windowConfig;
-    windowConfig.title = m_Config.name;
-    windowConfig.width = m_Config.windowWidth;
-    windowConfig.height = m_Config.windowHeight;
-    windowConfig.vsync = m_Config.vsync;
+    windowConfig.title = config.title;
+    windowConfig.width = config.width;
+    windowConfig.height = config.height;
+    windowConfig.vsync = config.vsync;
 
-    m_Window = CreateScope<Window>(windowConfig);
-    
-    // Set window callbacks
-    m_Window->SetResizeCallback([this](u32 width, u32 height) {
-        m_Renderer->OnResize(width, height);
-        OnResize(width, height);
+    _window = CreateScope<Window>(windowConfig);
+
+    _window->SetResizeCallback([this](u32 width, u32 height) {
+        _renderer->OnResize(width, height);
     });
 
-    m_Window->SetCloseCallback([this]() {
+    _window->SetCloseCallback([this]() {
         Quit();
     });
 
-    // Initialize input
-    Input::Init(m_Window->GetNativeHandle());
+    Input::Init(_window->GetNativeHandle());
 
-    // Create renderer
     RendererConfig rendererConfig;
-    rendererConfig.enableValidation = m_Config.enableValidation;
-    rendererConfig.vsync = m_Config.vsync;
+#ifdef TVK_DEBUG
+    rendererConfig.enableValidation = true;
+#else
+    rendererConfig.enableValidation = false;
+#endif
+    rendererConfig.vsync = config.vsync;
 
-    m_Renderer = CreateScope<Renderer>();
-    if (!m_Renderer->Init(m_Window.get(), rendererConfig)) {
+    _renderer = CreateScope<Renderer>();
+    if (!_renderer->Init(_window.get(), rendererConfig)) {
         TVK_LOG_FATAL("Failed to initialize renderer");
         return;
     }
 
-    // Create ImGui layer
     ImGuiConfig imguiConfig;
     imguiConfig.enableDocking = true;
 
-    m_ImGuiLayer = CreateScope<ImGuiLayer>();
-    if (!m_ImGuiLayer->Init(m_Window->GetNativeHandle(), m_Renderer.get(), imguiConfig)) {
+    _imguiLayer = CreateScope<ImGuiLayer>();
+    if (!_imguiLayer->Init(_window->GetNativeHandle(), _renderer.get(), imguiConfig)) {
         TVK_LOG_FATAL("Failed to initialize ImGui");
         return;
     }
 
-    // Initialize timing
-    m_StartTime = std::chrono::high_resolution_clock::now();
-    m_LastFrameTime = m_StartTime;
+    _startTime = std::chrono::high_resolution_clock::now();
+    _lastFrameTime = _startTime;
 
     TVK_LOG_INFO("TinyVK initialized successfully");
 }
 
-void Application::Shutdown() {
+void App::Shutdown() {
     TVK_LOG_INFO("Shutting down TinyVK Application");
 
-    // Wait for GPU to finish
-    m_Renderer->GetContext().WaitIdle();
+    _renderer->GetContext().WaitIdle();
 
-    // Cleanup in reverse order
-    m_ImGuiLayer->Cleanup();
-    m_ImGuiLayer.reset();
+    _imguiLayer->Cleanup();
+    _imguiLayer.reset();
 
-    m_Renderer->Cleanup();
-    m_Renderer.reset();
+    _renderer->Cleanup();
+    _renderer.reset();
 
-    m_Window.reset();
+    _window.reset();
 
     TVK_LOG_INFO("TinyVK shutdown complete");
 }
 
-void Application::Run() {
-    Initialize();
-    OnInit();
-    
-    m_Running = true;
-    MainLoop();
-    
-    OnShutdown();
-    Shutdown();
-}
-
-void Application::Quit() {
-    m_Running = false;
-    m_Window->Close();
-}
-
-void Application::MainLoop() {
+void App::MainLoop() {
     u32 frameCount = 0;
     float fpsTimer = 0.0f;
 
-    while (m_Running && !m_Window->ShouldClose()) {
-        // Calculate delta time
+    while (_running && !_window->ShouldClose()) {
         auto currentTime = std::chrono::high_resolution_clock::now();
-        m_DeltaTime = std::chrono::duration<float>(currentTime - m_LastFrameTime).count();
-        m_LastFrameTime = currentTime;
-        m_ElapsedTime = std::chrono::duration<float>(currentTime - m_StartTime).count();
+        _deltaTime = std::chrono::duration<float>(currentTime - _lastFrameTime).count();
+        _lastFrameTime = currentTime;
+        _elapsedTime = std::chrono::duration<float>(currentTime - _startTime).count();
 
-        // Calculate FPS
         frameCount++;
-        fpsTimer += m_DeltaTime;
+        fpsTimer += _deltaTime;
         if (fpsTimer >= 1.0f) {
-            m_FPS = static_cast<float>(frameCount) / fpsTimer;
+            _fps = static_cast<float>(frameCount) / fpsTimer;
             frameCount = 0;
             fpsTimer = 0.0f;
         }
 
-        // Poll events
-        m_Window->PollEvents();
+        _window->PollEvents();
         Input::Update();
 
-        // Handle minimized window
-        if (m_Window->IsMinimized()) {
-            m_Window->WaitEvents();
+        if (_window->IsMinimized()) {
+            _window->WaitEvents();
             continue;
         }
 
-        // Update
-        OnUpdate(m_DeltaTime);
+        OnUpdate();
 
-        // Render
-        if (m_Renderer->BeginFrame()) {
-            OnRender();
-
-            // ImGui rendering
-            m_ImGuiLayer->Begin();
-            OnImGui();
-            m_ImGuiLayer->End(m_Renderer->GetCurrentCommandBuffer());
-
-            m_Renderer->EndFrame();
+        if (_renderer->BeginFrame()) {
+            _imguiLayer->Begin();
+            OnUI();
+            _imguiLayer->End(_renderer->GetCurrentCommandBuffer());
+            _renderer->EndFrame();
         }
     }
 }
 
-Renderer& Application::GetRenderer() {
-    return *m_Renderer;
+u32 App::WindowWidth() const {
+    return _window->GetExtent().width;
+}
+
+u32 App::WindowHeight() const {
+    return _window->GetExtent().height;
+}
+
+const std::string& App::WindowTitle() const {
+    return _window->GetTitle();
+}
+
+Ref<Texture> App::LoadTexture(const std::string& path) {
+    return _renderer->CreateTexture(path);
 }
 
 } // namespace tvk

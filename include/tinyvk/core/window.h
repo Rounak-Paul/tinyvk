@@ -98,6 +98,11 @@ public:
     void SetTitle(const std::string& title);
 
     /**
+     * @brief Get window title
+     */
+    const std::string& GetTitle() const { return m_Config.title; }
+
+    /**
      * @brief Set resize callback
      */
     void SetResizeCallback(ResizeCallback callback) { m_ResizeCallback = std::move(callback); }
