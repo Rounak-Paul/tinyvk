@@ -74,8 +74,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "")
 set(CMAKE_C_FLAGS_RELEASE "")
 endif()
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 # Vendors --------------------------------------------------
 # GLFW
@@ -88,7 +88,7 @@ add_subdirectory(vendors/glfw)
 add_subdirectory(vendors/glm)
 
 # ImGui
-set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/vendors/imgui/imgui)
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendors/imgui/imgui)
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_demo.cpp
@@ -115,13 +115,13 @@ else()
 endif()
 
 # VMA (Header-only)
-set(VMA_DIR ${CMAKE_SOURCE_DIR}/vendors/vma)
+set(VMA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendors/vma)
 
 # JSON (Header-only)
-set(JSON_DIR ${CMAKE_SOURCE_DIR}/vendors/json)
+set(JSON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendors/json)
 
 # STB (Header-only)
-set(STB_DIR ${CMAKE_SOURCE_DIR}/vendors/stb)
+set(STB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendors/stb)
 # ----------------------------------------------------------
 
 # TinyVK Library -------------------------------------------
@@ -144,7 +144,7 @@ set(TINYVK_SOURCES
 
 add_library(tinyvk STATIC ${TINYVK_SOURCES})
 target_include_directories(tinyvk PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${VULKAN_PATH}/include
     ${VMA_DIR}/include
     ${JSON_DIR}/include
