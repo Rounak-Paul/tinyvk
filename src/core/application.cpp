@@ -5,9 +5,18 @@
 #include "tinyvk/ui/imgui_layer.h"
 #include "tinyvk/ui/render_widget.h"
 
+#ifdef TVK_PLATFORM_WINDOWS
+#include <windows.h>
+#endif
+
 namespace tvk {
 
-App::App() = default;
+App::App() {
+#ifdef TVK_PLATFORM_WINDOWS
+    SetEnvironmentVariableA("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+    SetEnvironmentVariableA("DISABLE_RTSS_LAYER", "1");
+#endif
+}
 
 App::~App() {
     _instance = nullptr;
@@ -63,7 +72,7 @@ void App::Initialize(const AppConfig& config) {
     Input::Init(_window->GetNativeHandle());
 
     RendererConfig rendererConfig;
-#ifdef TVK_DEBUG
+#ifdef TVK_DEBUG_BUILD
     rendererConfig.enableValidation = true;
 #else
     rendererConfig.enableValidation = false;

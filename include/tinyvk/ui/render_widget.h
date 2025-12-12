@@ -9,6 +9,7 @@
 #include "../renderer/context.h"
 #include <vulkan/vulkan.h>
 #include <functional>
+#include <array>
 
 namespace tvk {
 

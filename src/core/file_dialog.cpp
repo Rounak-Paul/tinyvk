@@ -492,7 +492,7 @@ bool FileSystem::WriteBinary(const std::string& path, const std::vector<u8>& dat
     return true;
 }
 
-std::string FileSystem::GetCurrentDirectory() {
+std::string FileSystem::GetWorkingDirectory() {
     return fs::current_path().string();
 }
 

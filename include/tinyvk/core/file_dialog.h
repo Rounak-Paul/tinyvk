@@ -129,7 +129,7 @@ public:
     /**
      * @brief Get current working directory
      */
-    static std::string GetCurrentDirectory();
+    static std::string GetWorkingDirectory();
 
     /**
      * @brief List files in directory

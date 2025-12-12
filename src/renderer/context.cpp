@@ -169,6 +169,7 @@ bool VulkanContext::CreateInstance(const ContextConfig& config) {
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pNext = nullptr;
     appInfo.pApplicationName = "TinyVK Application";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "TinyVK";
@@ -179,9 +180,13 @@ bool VulkanContext::CreateInstance(const ContextConfig& config) {
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = static_cast<u32>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
+    createInfo.enabledLayerCount = 0;
+    createInfo.ppEnabledLayerNames = nullptr;
 
 #ifdef TVK_PLATFORM_APPLE
     createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -202,12 +207,21 @@ bool VulkanContext::CreateInstance(const ContextConfig& config) {
             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         debugCreateInfo.pfnUserCallback = DebugCallback;
         createInfo.pNext = &debugCreateInfo;
+
+        TVK_LOG_INFO("Validation layers enabled:");
+        for (u32 i = 0; i < s_ValidationLayers.size(); i++) {
+            TVK_LOG_INFO("  {}", s_ValidationLayers[i]);
+        }
     } else {
         createInfo.enabledLayerCount = 0;
         createInfo.pNext = nullptr;
     }
 
-    if (vkCreateInstance(&createInfo, nullptr, &m_Instance) != VK_SUCCESS) {
+    VkResult result = vkCreateInstance(&createInfo, nullptr, &m_Instance);
+    
+    if (result != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to create Vulkan instance (error code: {})", static_cast<int>(result));
+        TVK_LOG_ERROR("Try setting environment variables: DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1=1 and DISABLE_RTSS_LAYER=1");
         return false;
     }
 
@@ -441,6 +455,11 @@ bool VulkanContext::CheckDeviceExtensionSupport(VkPhysicalDevice device, const s
 std::vector<const char*> VulkanContext::GetRequiredExtensions(const ContextConfig& config) const {
     u32 glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+    if (!glfwExtensions) {
+        TVK_LOG_ERROR("Failed to get GLFW required extensions");
+        return {};
+    }
 
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
