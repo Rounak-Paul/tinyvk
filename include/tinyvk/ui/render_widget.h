@@ -173,6 +173,10 @@ protected:
     void EndRenderPass(VkCommandBuffer cmd);
 
 private:
+    void CreateRenderPass();
+    void CreateSampler();
+    void CreateSizeDependentResources();
+    void CleanupSizeDependentResources();
     void CreateRenderTarget();
     void CleanupRenderTarget();
     void RecreateRenderTarget();

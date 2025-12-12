@@ -104,6 +104,7 @@ void RenderWidget::RenderImage() {
         
         if (newWidth != _width || newHeight != _height) {
             SetSize(newWidth, newHeight);
+            return;
         }
         
         ImGui::Image((ImTextureID)_imguiTexture, contentRegion);
@@ -180,137 +181,14 @@ void RenderWidget::EndRenderPass(VkCommandBuffer cmd) {
     vkCmdEndRenderPass(cmd);
 }
 
-void RenderWidget::CreateRenderTarget() {
+void RenderWidget::CreateRenderPass() {
     if (!_renderer) return;
     
     auto& ctx = _renderer->GetContext();
     VkDevice device = ctx.GetDevice();
     
-    // Create render image
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = _width;
-    imageInfo.extent.height = _height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    
-    if (vkCreateImage(device, &imageInfo, nullptr, &_renderImage) != VK_SUCCESS) {
-        TVK_LOG_ERROR("Failed to create render widget image");
-        return;
-    }
-    
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(device, _renderImage, &memRequirements);
-    
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = ctx.FindMemoryType(
-        memRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    );
-    
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &_renderImageMemory) != VK_SUCCESS) {
-        TVK_LOG_ERROR("Failed to allocate render widget image memory");
-        return;
-    }
-    
-    vkBindImageMemory(device, _renderImage, _renderImageMemory, 0);
-    
-    // Create image view
-    VkImageViewCreateInfo viewInfo{};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = _renderImage;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-    
-    if (vkCreateImageView(device, &viewInfo, nullptr, &_renderImageView) != VK_SUCCESS) {
-        TVK_LOG_ERROR("Failed to create render widget image view");
-        return;
-    }
-    
-    // Create sampler
-    VkSamplerCreateInfo samplerInfo{};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    samplerInfo.anisotropyEnable = VK_FALSE;
-    samplerInfo.maxAnisotropy = 1.0f;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    
-    if (vkCreateSampler(device, &samplerInfo, nullptr, &_sampler) != VK_SUCCESS) {
-        TVK_LOG_ERROR("Failed to create render widget sampler");
-        return;
-    }
-    
-    // Create depth resources
     VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
     
-    VkImageCreateInfo depthImageInfo{};
-    depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
-    depthImageInfo.extent.width = _width;
-    depthImageInfo.extent.height = _height;
-    depthImageInfo.extent.depth = 1;
-    depthImageInfo.mipLevels = 1;
-    depthImageInfo.arrayLayers = 1;
-    depthImageInfo.format = depthFormat;
-    depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    
-    vkCreateImage(device, &depthImageInfo, nullptr, &_depthImage);
-    
-    VkMemoryRequirements depthMemRequirements;
-    vkGetImageMemoryRequirements(device, _depthImage, &depthMemRequirements);
-    
-    VkMemoryAllocateInfo depthAllocInfo{};
-    depthAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    depthAllocInfo.allocationSize = depthMemRequirements.size;
-    depthAllocInfo.memoryTypeIndex = ctx.FindMemoryType(
-        depthMemRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    );
-    
-    vkAllocateMemory(device, &depthAllocInfo, nullptr, &_depthImageMemory);
-    vkBindImageMemory(device, _depthImage, _depthImageMemory, 0);
-    
-    VkImageViewCreateInfo depthViewInfo{};
-    depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    depthViewInfo.image = _depthImage;
-    depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    depthViewInfo.format = depthFormat;
-    depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    depthViewInfo.subresourceRange.baseMipLevel = 0;
-    depthViewInfo.subresourceRange.levelCount = 1;
-    depthViewInfo.subresourceRange.baseArrayLayer = 0;
-    depthViewInfo.subresourceRange.layerCount = 1;
-    
-    vkCreateImageView(device, &depthViewInfo, nullptr, &_depthImageView);
-    
-    // Create render pass
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = VK_FORMAT_R8G8B8A8_UNORM;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -364,8 +242,140 @@ void RenderWidget::CreateRenderTarget() {
     renderPassInfo.pDependencies = &dependency;
     
     vkCreateRenderPass(device, &renderPassInfo, nullptr, &_renderPass);
+}
+
+void RenderWidget::CreateSampler() {
+    if (!_renderer) return;
     
-    // Create framebuffer
+    auto& ctx = _renderer->GetContext();
+    VkDevice device = ctx.GetDevice();
+    
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    
+    if (vkCreateSampler(device, &samplerInfo, nullptr, &_sampler) != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to create render widget sampler");
+    }
+}
+
+void RenderWidget::CreateSizeDependentResources() {
+    if (!_renderer) return;
+    
+    auto& ctx = _renderer->GetContext();
+    VkDevice device = ctx.GetDevice();
+    
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = _width;
+    imageInfo.extent.height = _height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    
+    if (vkCreateImage(device, &imageInfo, nullptr, &_renderImage) != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to create render widget image");
+        return;
+    }
+    
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(device, _renderImage, &memRequirements);
+    
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = ctx.FindMemoryType(
+        memRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
+    
+    if (vkAllocateMemory(device, &allocInfo, nullptr, &_renderImageMemory) != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to allocate render widget image memory");
+        return;
+    }
+    
+    vkBindImageMemory(device, _renderImage, _renderImageMemory, 0);
+    
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = _renderImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+    
+    if (vkCreateImageView(device, &viewInfo, nullptr, &_renderImageView) != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to create render widget image view");
+        return;
+    }
+    
+    VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+    
+    VkImageCreateInfo depthImageInfo{};
+    depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
+    depthImageInfo.extent.width = _width;
+    depthImageInfo.extent.height = _height;
+    depthImageInfo.extent.depth = 1;
+    depthImageInfo.mipLevels = 1;
+    depthImageInfo.arrayLayers = 1;
+    depthImageInfo.format = depthFormat;
+    depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    
+    vkCreateImage(device, &depthImageInfo, nullptr, &_depthImage);
+    
+    VkMemoryRequirements depthMemRequirements;
+    vkGetImageMemoryRequirements(device, _depthImage, &depthMemRequirements);
+    
+    VkMemoryAllocateInfo depthAllocInfo{};
+    depthAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    depthAllocInfo.allocationSize = depthMemRequirements.size;
+    depthAllocInfo.memoryTypeIndex = ctx.FindMemoryType(
+        depthMemRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
+    
+    vkAllocateMemory(device, &depthAllocInfo, nullptr, &_depthImageMemory);
+    vkBindImageMemory(device, _depthImage, _depthImageMemory, 0);
+    
+    VkImageViewCreateInfo depthViewInfo{};
+    depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    depthViewInfo.image = _depthImage;
+    depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    depthViewInfo.format = depthFormat;
+    depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    depthViewInfo.subresourceRange.baseMipLevel = 0;
+    depthViewInfo.subresourceRange.levelCount = 1;
+    depthViewInfo.subresourceRange.baseArrayLayer = 0;
+    depthViewInfo.subresourceRange.layerCount = 1;
+    
+    vkCreateImageView(device, &depthViewInfo, nullptr, &_depthImageView);
+    
     std::array<VkImageView, 2> fbAttachments = {_renderImageView, _depthImageView};
     
     VkFramebufferCreateInfo framebufferInfo{};
@@ -379,11 +389,10 @@ void RenderWidget::CreateRenderTarget() {
     
     vkCreateFramebuffer(device, &framebufferInfo, nullptr, &_framebuffer);
     
-    // Create ImGui texture descriptor
     _imguiTexture = ImGui_ImplVulkan_AddTexture(_sampler, _renderImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void RenderWidget::CleanupRenderTarget() {
+void RenderWidget::CleanupSizeDependentResources() {
     if (!_renderer) return;
     
     VkDevice device = _renderer->GetContext().GetDevice();
@@ -396,11 +405,6 @@ void RenderWidget::CleanupRenderTarget() {
     if (_framebuffer != VK_NULL_HANDLE) {
         vkDestroyFramebuffer(device, _framebuffer, nullptr);
         _framebuffer = VK_NULL_HANDLE;
-    }
-    
-    if (_renderPass != VK_NULL_HANDLE) {
-        vkDestroyRenderPass(device, _renderPass, nullptr);
-        _renderPass = VK_NULL_HANDLE;
     }
     
     if (_depthImageView != VK_NULL_HANDLE) {
@@ -416,11 +420,6 @@ void RenderWidget::CleanupRenderTarget() {
     if (_depthImageMemory != VK_NULL_HANDLE) {
         vkFreeMemory(device, _depthImageMemory, nullptr);
         _depthImageMemory = VK_NULL_HANDLE;
-    }
-    
-    if (_sampler != VK_NULL_HANDLE) {
-        vkDestroySampler(device, _sampler, nullptr);
-        _sampler = VK_NULL_HANDLE;
     }
     
     if (_renderImageView != VK_NULL_HANDLE) {
@@ -439,13 +438,37 @@ void RenderWidget::CleanupRenderTarget() {
     }
 }
 
+void RenderWidget::CreateRenderTarget() {
+    CreateRenderPass();
+    CreateSampler();
+    CreateSizeDependentResources();
+}
+
+void RenderWidget::CleanupRenderTarget() {
+    if (!_renderer) return;
+    
+    VkDevice device = _renderer->GetContext().GetDevice();
+    
+    CleanupSizeDependentResources();
+    
+    if (_renderPass != VK_NULL_HANDLE) {
+        vkDestroyRenderPass(device, _renderPass, nullptr);
+        _renderPass = VK_NULL_HANDLE;
+    }
+    
+    if (_sampler != VK_NULL_HANDLE) {
+        vkDestroySampler(device, _sampler, nullptr);
+        _sampler = VK_NULL_HANDLE;
+    }
+}
+
 void RenderWidget::RecreateRenderTarget() {
     if (!_renderer) return;
     
     _renderer->GetContext().WaitIdle();
     
-    CleanupRenderTarget();
-    CreateRenderTarget();
+    CleanupSizeDependentResources();
+    CreateSizeDependentResources();
 }
 
 } // namespace tvk
