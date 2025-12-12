@@ -21,10 +21,12 @@ class Renderer;
  */
 struct ImGuiConfig {
     bool enableDocking = true;
-    bool enableViewports = false;  // Multi-viewport support
+    bool enableViewports = false;
     float fontScale = 1.0f;
-    const char* fontPath = nullptr;  // Optional custom font
+    const char* fontPath = nullptr;
     float fontSize = 16.0f;
+    bool useEmbeddedFont = true;
+    const char* embeddedFontName = "roboto";
 };
 
 /**

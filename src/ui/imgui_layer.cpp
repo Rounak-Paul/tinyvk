@@ -7,12 +7,14 @@
 #include "tinyvk/renderer/renderer.h"
 #include "tinyvk/renderer/context.h"
 #include "tinyvk/core/log.h"
+#include "tinyvk/assets/fonts.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
 #include <GLFW/glfw3.h>
+#include <cstring>
 
 namespace tvk {
 
@@ -72,6 +74,28 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
     // Load font
     if (config.fontPath != nullptr) {
         io.Fonts->AddFontFromFileTTF(config.fontPath, config.fontSize * config.fontScale);
+    } else if (config.useEmbeddedFont) {
+        void* fontData = roboto_medium;
+        int fontDataSize = roboto_medium_size;
+        
+        if (std::strcmp(config.embeddedFontName, "roboto") == 0) {
+            fontData = roboto_medium;
+            fontDataSize = roboto_medium_size;
+        } else if (std::strcmp(config.embeddedFontName, "lexend") == 0) {
+            fontData = lexend_regular;
+            fontDataSize = lexend_regular_size;
+        } else if (std::strcmp(config.embeddedFontName, "quicksand") == 0) {
+            fontData = quicksand_regular;
+            fontDataSize = quicksand_regular_size;
+        } else if (std::strcmp(config.embeddedFontName, "droid") == 0) {
+            fontData = droid_sans;
+            fontDataSize = droid_sans_size;
+        }
+        
+        ImFontConfig fontConfig;
+        fontConfig.FontDataOwnedByAtlas = false;
+        io.Fonts->AddFontFromMemoryTTF(fontData, fontDataSize, config.fontSize * config.fontScale, &fontConfig);
+        TVK_LOG_INFO("Loaded embedded font: {}", config.embeddedFontName);
     } else {
         io.FontGlobalScale = config.fontScale;
     }

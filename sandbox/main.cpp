@@ -5,11 +5,123 @@
 
 #include <tinyvk/tinyvk.h>
 #include <imgui.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include "tinyvk/renderer/pipeline.h"
+#include "tinyvk/renderer/shaders.h"
+
+class GameViewport : public tvk::RenderWidget {
+protected:
+    void OnRenderInit() override {
+        _rotation = 0.0f;
+        
+        // Create various geometries
+        _cubeMesh = tvk::Geometry::CreateCube(GetRenderer(), 1.0f);
+        _sphereMesh = tvk::Geometry::CreateSphere(GetRenderer(), 0.5f, 32, 16);
+        _planeMesh = tvk::Geometry::CreatePlane(GetRenderer(), 2.0f, 2.0f, 10, 10);
+        _cylinderMesh = tvk::Geometry::CreateCylinder(GetRenderer(), 0.3f, 1.5f, 24);
+        _coneMesh = tvk::Geometry::CreateCone(GetRenderer(), 0.5f, 1.0f, 24);
+        _torusMesh = tvk::Geometry::CreateTorus(GetRenderer(), 0.5f, 0.2f, 32, 16);
+        
+        TVK_LOG_INFO("GameViewport initialized:");
+        if (_cubeMesh) TVK_LOG_INFO("  Cube: {} vertices, {} indices", _cubeMesh->GetVertexCount(), _cubeMesh->GetIndexCount());
+        if (_sphereMesh) TVK_LOG_INFO("  Sphere: {} vertices, {} indices", _sphereMesh->GetVertexCount(), _sphereMesh->GetIndexCount());
+        if (_planeMesh) TVK_LOG_INFO("  Plane: {} vertices, {} indices", _planeMesh->GetVertexCount(), _planeMesh->GetIndexCount());
+        if (_cylinderMesh) TVK_LOG_INFO("  Cylinder: {} vertices, {} indices", _cylinderMesh->GetVertexCount(), _cylinderMesh->GetIndexCount());
+        if (_coneMesh) TVK_LOG_INFO("  Cone: {} vertices, {} indices", _coneMesh->GetVertexCount(), _coneMesh->GetIndexCount());
+        if (_torusMesh) TVK_LOG_INFO("  Torus: {} vertices, {} indices", _torusMesh->GetVertexCount(), _torusMesh->GetIndexCount());
+        
+        SetClearColor(0.2f, 0.3f, 0.4f, 1.0f);
+        
+        _pipeline = tvk::CreateScope<tvk::Pipeline>();
+        if (!_pipeline->Create(GetRenderer(), GetRenderPass(), tvk::shaders::basic_vert, tvk::shaders::basic_frag)) {
+            TVK_LOG_ERROR("Failed to create graphics pipeline");
+        }
+    }
+
+    void OnRenderFrame(VkCommandBuffer cmd) override {
+        BeginRenderPass(cmd);
+        
+        if (_pipeline && _cubeMesh && GetWidth() > 0 && GetHeight() > 0) {
+            _pipeline->Bind(cmd);
+            
+            glm::mat4 view = glm::lookAt(
+                glm::vec3(0.0f, 0.0f, 3.0f),
+                glm::vec3(0.0f, 0.0f, 0.0f),
+                glm::vec3(0.0f, 1.0f, 0.0f)
+            );
+            
+            float aspect = (float)GetWidth() / (float)GetHeight();
+            glm::mat4 proj = glm::perspective(
+                glm::radians(45.0f),
+                aspect,
+                0.1f,
+                100.0f
+            );
+            proj[1][1] *= -1;
+            
+            glm::mat4 model = glm::rotate(
+                glm::mat4(1.0f),
+                glm::radians(_rotation),
+                glm::vec3(0.0f, 1.0f, 0.0f)
+            );
+            
+            tvk::PushConstants push;
+            push.model = model;
+            push.view_projection = proj * view;
+            
+            _pipeline->SetPushConstants(cmd, push);
+            _cubeMesh->Draw(cmd);
+        }
+        
+        EndRenderPass(cmd);
+    }
+
+    void OnRenderUpdate(float deltaTime) override {
+        _rotation += deltaTime * 45.0f;
+        if (_rotation > 360.0f) _rotation -= 360.0f;
+    }
+
+    void OnRenderResize(tvk::u32 width, tvk::u32 height) override {
+        TVK_LOG_INFO("GameViewport resized to {}x{}", width, height);
+    }
+
+    void OnRenderCleanup() override {
+        if (_pipeline) {
+            _pipeline->Destroy();
+        }
+        _cubeMesh.reset();
+        _sphereMesh.reset();
+        _planeMesh.reset();
+        _cylinderMesh.reset();
+        _coneMesh.reset();
+        _torusMesh.reset();
+    }
+
+private:
+    float _rotation = 0.0f;
+    tvk::Scope<tvk::Mesh> _cubeMesh;
+    tvk::Scope<tvk::Mesh> _sphereMesh;
+    tvk::Scope<tvk::Mesh> _planeMesh;
+    tvk::Scope<tvk::Mesh> _cylinderMesh;
+    tvk::Scope<tvk::Mesh> _coneMesh;
+    tvk::Scope<tvk::Mesh> _torusMesh;
+    tvk::Scope<tvk::Pipeline> _pipeline;
+};
 
 class SandboxApp : public tvk::App {
 protected:
     void OnStart() override {
         TVK_LOG_INFO("Sandbox application started!");
+        TVK_LOG_INFO("Running in {} mode", 
+            GetMode() == tvk::AppMode::GUI ? "GUI" :
+            GetMode() == tvk::AppMode::Game ? "Game" : "Hybrid");
+        
+        _gameViewport = tvk::CreateScope<GameViewport>();
+        RegisterWidget(_gameViewport.get());
+        
+        // Set a clear color for game rendering
+        SetClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     }
 
     void OnUpdate() override {
@@ -38,6 +150,7 @@ protected:
                 ImGui::MenuItem("ImGui Demo", nullptr, &_showDemoWindow);
                 ImGui::MenuItem("Stats", nullptr, &_showStats);
                 ImGui::MenuItem("Image Viewer", nullptr, &_showImageViewer);
+                ImGui::MenuItem("Game Viewport", nullptr, &_showGameViewport);
                 ImGui::MenuItem("Settings", nullptr, &_showSettings);
                 ImGui::EndMenu();
             }
@@ -55,6 +168,15 @@ protected:
             auto mousePos = tvk::Input::GetMousePosition();
             ImGui::Text("Mouse: (%.0f, %.0f)", mousePos.x, mousePos.y);
             ImGui::End();
+        }
+        
+        if (_showGameViewport && _gameViewport) {
+            ImGui::Begin("Game Viewport", &_showGameViewport);
+            _gameViewport->SetEnabled(true);
+            _gameViewport->RenderImage();
+            ImGui::End();
+        } else if (_gameViewport) {
+            _gameViewport->SetEnabled(false);
         }
 
         if (_showImageViewer) {
@@ -165,9 +287,12 @@ private:
     bool _showStats = true;
     bool _showSettings = true;
     bool _showImageViewer = true;
+    bool _showGameViewport = true;
 
     tvk::Ref<tvk::Texture> _loadedTexture;
     std::string _imagePath;
+    
+    tvk::Scope<GameViewport> _gameViewport;
 };
 
 int main() {

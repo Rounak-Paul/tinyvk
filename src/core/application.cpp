@@ -3,6 +3,7 @@
 #include "tinyvk/core/log.h"
 #include "tinyvk/renderer/renderer.h"
 #include "tinyvk/ui/imgui_layer.h"
+#include "tinyvk/ui/render_widget.h"
 
 namespace tvk {
 
@@ -40,6 +41,8 @@ void App::Run(const AppConfig& config) {
 
 void App::Initialize(const AppConfig& config) {
     TVK_LOG_INFO("Initializing TinyVK Application: {}", config.title);
+    
+    _mode = config.mode;
 
     WindowConfig windowConfig;
     windowConfig.title = config.title;
@@ -92,6 +95,11 @@ void App::Shutdown() {
     TVK_LOG_INFO("Shutting down TinyVK Application");
 
     _renderer->GetContext().WaitIdle();
+    
+    for (auto* widget : _widgets) {
+        widget->Cleanup();
+    }
+    _widgets.clear();
 
     _imguiLayer->Cleanup();
     _imguiLayer.reset();
@@ -133,9 +141,29 @@ void App::MainLoop() {
         OnUpdate();
 
         if (_renderer->BeginFrame()) {
-            _imguiLayer->Begin();
-            OnUI();
-            _imguiLayer->End(_renderer->GetCurrentCommandBuffer());
+            OnPreRender();
+            
+            // Game mode: render directly to swapchain
+            if (_mode == AppMode::Game || _mode == AppMode::Hybrid) {
+                VkCommandBuffer cmd = _renderer->GetCurrentCommandBuffer();
+                OnRender(cmd);
+            }
+            
+            // GUI mode: render ImGui interface
+            if (_mode == AppMode::GUI || _mode == AppMode::Hybrid) {
+                _imguiLayer->Begin();
+                OnUI();
+                
+                for (auto* widget : _widgets) {
+                    if (widget->IsEnabled()) {
+                        widget->Render(_deltaTime);
+                    }
+                }
+                
+                _imguiLayer->End(_renderer->GetCurrentCommandBuffer());
+            }
+            
+            OnPostRender();
             _renderer->EndFrame();
         }
     }
@@ -155,6 +183,47 @@ const std::string& App::WindowTitle() const {
 
 Ref<Texture> App::LoadTexture(const std::string& path) {
     return _renderer->CreateTexture(path);
+}
+
+void App::RegisterWidget(RenderWidget* widget) {
+    if (!widget) return;
+    
+    for (auto* w : _widgets) {
+        if (w == widget) return;
+    }
+    
+    widget->Initialize(_renderer.get());
+    _widgets.push_back(widget);
+}
+
+void App::UnregisterWidget(RenderWidget* widget) {
+    if (!widget) return;
+    
+    auto it = std::find(_widgets.begin(), _widgets.end(), widget);
+    if (it != _widgets.end()) {
+        widget->Cleanup();
+        _widgets.erase(it);
+    }
+}
+
+Renderer* App::GetRenderer() {
+    return _renderer.get();
+}
+
+Window* App::GetWindow() {
+    return _window.get();
+}
+
+VkCommandBuffer App::GetCommandBuffer() {
+    return _renderer->GetCurrentCommandBuffer();
+}
+
+VulkanContext& App::GetContext() {
+    return _renderer->GetContext();
+}
+
+void App::SetClearColor(float r, float g, float b, float a) {
+    _renderer->SetClearColor({r, g, b, a});
 }
 
 } // namespace tvk

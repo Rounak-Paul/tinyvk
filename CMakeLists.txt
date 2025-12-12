@@ -134,7 +134,12 @@ set(TINYVK_SOURCES
     src/renderer/renderer.cpp
     src/renderer/texture.cpp
     src/renderer/buffer.cpp
+    src/renderer/mesh.cpp
+    src/renderer/pipeline.cpp
+    src/renderer/shader_compiler.cpp
     src/ui/imgui_layer.cpp
+    src/ui/render_widget.cpp
+    src/assets/fonts.cpp
 )
 
 add_library(tinyvk STATIC ${TINYVK_SOURCES})
@@ -152,19 +157,33 @@ target_link_libraries(tinyvk PUBLIC
     imgui
 )
 if(APPLE)
-    target_link_libraries(tinyvk PUBLIC vulkan)
+    target_link_libraries(tinyvk PUBLIC vulkan shaderc_shared)
     # Link AppKit for file dialogs
     target_link_libraries(tinyvk PUBLIC "-framework AppKit")
     # Enable Objective-C++ for file_dialog.cpp on macOS
     set_source_files_properties(src/core/file_dialog.cpp PROPERTIES LANGUAGE OBJCXX)
 elseif(WIN32)
-    target_link_libraries(tinyvk PUBLIC vulkan-1)
+    target_link_libraries(tinyvk PUBLIC vulkan-1 shaderc_shared)
 else()
-    target_link_libraries(tinyvk PUBLIC vulkan)
+    target_link_libraries(tinyvk PUBLIC vulkan shaderc_shared)
 endif()
 # ----------------------------------------------------------
 
 # Sandbox Application --------------------------------------
 add_executable(sandbox sandbox/main.cpp)
 target_link_libraries(sandbox PRIVATE tinyvk)
+# ----------------------------------------------------------
+
+# Example Applications -------------------------------------
+# GUI Mode Example (Qt-style tool)
+add_executable(gui_example examples/gui_example.cpp)
+target_link_libraries(gui_example PRIVATE tinyvk)
+
+# Game Mode Example (SDL3-style game)
+add_executable(game_example examples/game_example.cpp)
+target_link_libraries(game_example PRIVATE tinyvk)
+
+# Hybrid Mode Example (Level editor with viewport)
+add_executable(hybrid_example examples/hybrid_example.cpp)
+target_link_libraries(hybrid_example PRIVATE tinyvk)
 # ----------------------------------------------------------

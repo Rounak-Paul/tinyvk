@@ -9,12 +9,28 @@
 #include "window.h"
 #include <string>
 #include <chrono>
+#include <vector>
+
+// Forward declare Vulkan types
+struct VkCommandBuffer_T;
+typedef VkCommandBuffer_T* VkCommandBuffer;
 
 namespace tvk {
 
 // Forward declarations (internal - users don't need these)
 class Renderer;
 class ImGuiLayer;
+class RenderWidget;
+class VulkanContext;
+
+/**
+ * @brief Application rendering mode
+ */
+enum class AppMode {
+    GUI,      // ImGui-only (Qt-style tools, editors)
+    Game,     // Direct rendering to swapchain (SDL3-style games)
+    Hybrid    // Both ImGui UI and direct rendering (level editors, etc)
+};
 
 /**
  * @brief Application configuration
@@ -24,6 +40,7 @@ struct AppConfig {
     u32 width = 1280;
     u32 height = 720;
     bool vsync = true;
+    AppMode mode = AppMode::Hybrid;  // Default to most flexible mode
 };
 
 // Legacy alias
@@ -91,6 +108,20 @@ public:
     
     // Texture loading helper
     Ref<class Texture> LoadTexture(const std::string& path);
+    
+    // Widget management
+    void RegisterWidget(RenderWidget* widget);
+    void UnregisterWidget(RenderWidget* widget);
+    
+    // Direct access to renderer and window (for game mode)
+    Renderer* GetRenderer();
+    Window* GetWindow();
+    AppMode GetMode() const { return _mode; }
+    
+    // SDL3-style convenience helpers
+    VkCommandBuffer GetCommandBuffer();
+    VulkanContext& GetContext();
+    void SetClearColor(float r, float g, float b, float a = 1.0f);
 
 protected:
     /**
@@ -108,6 +139,25 @@ protected:
      * This is where you write all your ImGui code
      */
     virtual void OnUI() {}
+    
+    /**
+     * @brief Called before rendering starts (Game/Hybrid modes)
+     * Use this to prepare resources before render pass
+     */
+    virtual void OnPreRender() {}
+    
+    /**
+     * @brief Called to render directly to swapchain (Game/Hybrid modes)
+     * Override to draw your game content with Vulkan commands
+     * @param cmd Active command buffer for recording render commands
+     */
+    virtual void OnRender(VkCommandBuffer cmd) {}
+    
+    /**
+     * @brief Called after rendering finishes (Game/Hybrid modes)
+     * Use this for post-processing or cleanup
+     */
+    virtual void OnPostRender() {}
 
     /**
      * @brief Called once at shutdown - override to cleanup
@@ -124,6 +174,10 @@ private:
     Scope<Window> _window;
     Scope<Renderer> _renderer;
     Scope<ImGuiLayer> _imguiLayer;
+    
+    std::vector<RenderWidget*> _widgets;
+    
+    AppMode _mode = AppMode::Hybrid;
 
     bool _running = false;
     float _deltaTime = 0.0f;
