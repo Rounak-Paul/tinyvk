@@ -173,6 +173,7 @@ bool Texture::Init(Renderer* renderer, const void* data, const TextureSpec& spec
     m_Width = spec.width;
     m_Height = spec.height;
     m_Format = ToVkFormat(spec.format);
+    m_StorageUsage = spec.storageUsage;
 
     if (spec.generateMipmaps) {
         m_MipLevels = static_cast<u32>(std::floor(std::log2(std::max(m_Width, m_Height)))) + 1;
@@ -215,8 +216,12 @@ bool Texture::Init(Renderer* renderer, const void* data, const TextureSpec& spec
     vkUnmapMemory(m_Context->GetDevice(), stagingBufferMemory);
 
     // Create image
+    VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (spec.storageUsage) {
+        usageFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    }
     CreateImage(m_Width, m_Height, m_Format, VK_IMAGE_TILING_OPTIMAL,
-               VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+               usageFlags,
                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Transition and copy

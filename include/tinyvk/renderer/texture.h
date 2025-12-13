@@ -63,6 +63,7 @@ struct TextureSpec {
     TextureWrap wrapV = TextureWrap::Repeat;
     bool generateMipmaps = true;
     bool useSampler = true;
+    bool storageUsage = false;
 };
 
 /**
@@ -170,6 +171,7 @@ private:
     u32 m_Width = 0;
     u32 m_Height = 0;
     u32 m_MipLevels = 1;
+    bool m_StorageUsage = false;
     std::string m_FilePath;
 };
 
