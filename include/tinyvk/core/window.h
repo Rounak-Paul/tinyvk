@@ -50,6 +50,7 @@ class Window {
 public:
     using ResizeCallback = std::function<void(u32 width, u32 height)>;
     using CloseCallback = std::function<void()>;
+    using MaximizeCallback = std::function<void(bool maximized)>;
 
     Window(const WindowConfig& config = WindowConfig{});
     ~Window();
@@ -113,23 +114,65 @@ public:
     void SetCloseCallback(CloseCallback callback) { m_CloseCallback = std::move(callback); }
 
     /**
+     * @brief Set maximize callback
+     */
+    void SetMaximizeCallback(MaximizeCallback callback) { m_MaximizeCallback = std::move(callback); }
+
+    /**
      * @brief Check if window is minimized
      */
     bool IsMinimized() const;
+
+    /**
+     * @brief Check if window is maximized
+     */
+    bool IsMaximized() const;
 
     /**
      * @brief Wait for window events (used when minimized)
      */
     void WaitEvents();
 
+    /**
+     * @brief Get window position
+     */
+    void GetPosition(i32& x, i32& y) const;
+
+    /**
+     * @brief Set window position
+     */
+    void SetPosition(i32 x, i32 y);
+
+    /**
+     * @brief Set window size
+     */
+    void SetSize(u32 width, u32 height);
+
+    /**
+     * @brief Iconify (minimize) the window
+     */
+    void Iconify();
+
+    /**
+     * @brief Maximize the window
+     */
+    void Maximize();
+
+    /**
+     * @brief Restore the window from iconified or maximized state
+     */
+    void Restore();
+
 private:
     GLFWwindow* m_Window = nullptr;
     WindowConfig m_Config;
     ResizeCallback m_ResizeCallback;
     CloseCallback m_CloseCallback;
+    MaximizeCallback m_MaximizeCallback;
 
     static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
     static void WindowCloseCallback(GLFWwindow* window);
+    static void WindowMaximizeCallback(GLFWwindow* window, int maximized);
 };
 
 } // namespace tvk

@@ -8,6 +8,7 @@
 #include "tinyvk/renderer/context.h"
 #include "tinyvk/core/log.h"
 #include "tinyvk/assets/fonts.h"
+#include "tinyvk/assets/icons_font_awesome.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -99,6 +100,15 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
     } else {
         io.FontGlobalScale = config.fontScale;
     }
+
+    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    ImFontConfig icons_config;
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
+    icons_config.FontDataOwnedByAtlas = false;
+    icons_config.GlyphMinAdvanceX = config.fontSize * config.fontScale;
+    io.Fonts->AddFontFromMemoryTTF(fa_solid_900, fa_solid_900_size, config.fontSize * config.fontScale, &icons_config, icons_ranges);
+    TVK_LOG_INFO("Loaded Font Awesome icons");
 
     // Setup platform/renderer backends
     ImGui_ImplGlfw_InitForVulkan(window, true);

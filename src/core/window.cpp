@@ -54,6 +54,7 @@ Window::Window(const WindowConfig& config) : m_Config(config) {
     // Set callbacks
     glfwSetFramebufferSizeCallback(m_Window, FramebufferResizeCallback);
     glfwSetWindowCloseCallback(m_Window, WindowCloseCallback);
+    glfwSetWindowMaximizeCallback(m_Window, WindowMaximizeCallback);
 
     TVK_LOG_INFO("Window created: {} ({}x{})", config.title, config.width, config.height);
 }
@@ -73,7 +74,8 @@ Window::Window(Window&& other) noexcept
     : m_Window(other.m_Window)
     , m_Config(std::move(other.m_Config))
     , m_ResizeCallback(std::move(other.m_ResizeCallback))
-    , m_CloseCallback(std::move(other.m_CloseCallback)) {
+    , m_CloseCallback(std::move(other.m_CloseCallback))
+    , m_MaximizeCallback(std::move(other.m_MaximizeCallback)) {
     other.m_Window = nullptr;
     if (m_Window) {
         glfwSetWindowUserPointer(m_Window, this);
@@ -91,6 +93,7 @@ Window& Window::operator=(Window&& other) noexcept {
         m_Config = std::move(other.m_Config);
         m_ResizeCallback = std::move(other.m_ResizeCallback);
         m_CloseCallback = std::move(other.m_CloseCallback);
+        m_MaximizeCallback = std::move(other.m_MaximizeCallback);
 
         other.m_Window = nullptr;
         if (m_Window) {
@@ -134,8 +137,36 @@ bool Window::IsMinimized() const {
     return extent.width == 0 || extent.height == 0;
 }
 
+bool Window::IsMaximized() const {
+    return glfwGetWindowAttrib(m_Window, GLFW_MAXIMIZED) == GLFW_TRUE;
+}
+
 void Window::WaitEvents() {
     glfwWaitEvents();
+}
+
+void Window::GetPosition(i32& x, i32& y) const {
+    glfwGetWindowPos(m_Window, &x, &y);
+}
+
+void Window::SetPosition(i32 x, i32 y) {
+    glfwSetWindowPos(m_Window, x, y);
+}
+
+void Window::SetSize(u32 width, u32 height) {
+    glfwSetWindowSize(m_Window, static_cast<int>(width), static_cast<int>(height));
+}
+
+void Window::Iconify() {
+    glfwIconifyWindow(m_Window);
+}
+
+void Window::Maximize() {
+    glfwMaximizeWindow(m_Window);
+}
+
+void Window::Restore() {
+    glfwRestoreWindow(m_Window);
 }
 
 void Window::FramebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -149,6 +180,13 @@ void Window::WindowCloseCallback(GLFWwindow* window) {
     auto* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
     if (self && self->m_CloseCallback) {
         self->m_CloseCallback();
+    }
+}
+
+void Window::WindowMaximizeCallback(GLFWwindow* window, int maximized) {
+    auto* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (self && self->m_MaximizeCallback) {
+        self->m_MaximizeCallback(maximized == GLFW_TRUE);
     }
 }
 

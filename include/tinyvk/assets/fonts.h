@@ -52,4 +52,7 @@ extern unsigned int proggy_clean_size;
 extern unsigned char proggy_tiny[];
 extern unsigned int proggy_tiny_size;
 
+extern unsigned char fa_solid_900[];
+extern unsigned int fa_solid_900_size;
+
 } // namespace tvk

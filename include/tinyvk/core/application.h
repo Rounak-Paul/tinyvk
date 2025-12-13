@@ -40,6 +40,7 @@ struct AppConfig {
     u32 width = 1280;
     u32 height = 720;
     bool vsync = true;
+    bool decorated = true;
     AppMode mode = AppMode::Hybrid;
     bool enableDockspace = true;
 };
