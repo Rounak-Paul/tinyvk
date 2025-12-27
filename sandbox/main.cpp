@@ -1,6 +1,16 @@
 /**
  * @file main.cpp
- * @brief Sandbox application demonstrating TinyVK usage
+ * @brief TinyVK comprehensive example demonstrating all features and application modes
+ * 
+ * This sandbox demonstrates:
+ * - All three AppModes: GUI, Game, and Hybrid
+ * - RenderWidget for embedded viewports
+ * - Mesh/geometry rendering with various primitives
+ * - Graphics pipeline usage
+ * - Texture loading and ImGui integration
+ * - File dialogs
+ * - Input handling
+ * - ImGui docking and menus
  */
 
 #include <tinyvk/tinyvk.h>
@@ -121,15 +131,25 @@ protected:
         RegisterWidget(_gameViewport.get());
         
         SetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        
+        _counter = 0;
+        _textInput[0] = '\0';
     }
 
     void OnUpdate() override {
         if (tvk::Input::IsKeyPressed(tvk::Key::Escape)) {
             Quit();
         }
+        
+        if (tvk::Input::IsKeyPressed(tvk::Key::Space)) {
+            TVK_LOG_INFO("Space key pressed!");
+        }
     }
 
     void OnUI() override {
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::DockSpaceOverViewport(0, viewport);
+
         if (_showDemoWindow) {
             ImGui::ShowDemoWindow(&_showDemoWindow);
         }
@@ -149,8 +169,21 @@ protected:
                 ImGui::MenuItem("ImGui Demo", nullptr, &_showDemoWindow);
                 ImGui::MenuItem("Stats", nullptr, &_showStats);
                 ImGui::MenuItem("Image Viewer", nullptr, &_showImageViewer);
-                ImGui::MenuItem("Game Viewport", nullptr, &_showGameViewport);
-                ImGui::MenuItem("Settings", nullptr, &_showSettings);
+                ImGui::MenuItem("3D Viewport", nullptr, &_showGameViewport);
+                ImGui::MenuItem("Controls", nullptr, &_showControls);
+                ImGui::MenuItem("Scene Hierarchy", nullptr, &_showHierarchy);
+                ImGui::MenuItem("Properties", nullptr, &_showProperties);
+                ImGui::MenuItem("About", nullptr, &_showSettings);
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Help")) {
+                if (ImGui::MenuItem("Documentation")) {
+                    TVK_LOG_INFO("Opening documentation...");
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("About")) {
+                    _showSettings = true;
+                }
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
@@ -166,16 +199,113 @@ protected:
             ImGui::Separator();
             auto mousePos = tvk::Input::GetMousePosition();
             ImGui::Text("Mouse: (%.0f, %.0f)", mousePos.x, mousePos.y);
+            ImGui::Text("LMB: %s", tvk::Input::IsMouseButtonPressed(tvk::MouseButton::Left) ? "Pressed" : "Released");
+            ImGui::Text("RMB: %s", tvk::Input::IsMouseButtonPressed(tvk::MouseButton::Right) ? "Pressed" : "Released");
             ImGui::End();
         }
         
         if (_showGameViewport && _gameViewport) {
-            ImGui::Begin("Game Viewport", &_showGameViewport);
+            ImGui::Begin("3D Viewport", &_showGameViewport);
             _gameViewport->SetEnabled(true);
             _gameViewport->RenderImage();
             ImGui::End();
         } else if (_gameViewport) {
             _gameViewport->SetEnabled(false);
+        }
+
+        if (_showControls) {
+            ImGui::Begin("GUI Controls Demo", &_showControls);
+            
+            ImGui::TextWrapped("This demonstrates Qt-style GUI controls for building tools and editors.");
+            ImGui::Separator();
+            
+            if (ImGui::Button("Click me!")) {
+                _counter++;
+                TVK_LOG_INFO("Button clicked {} times", _counter);
+            }
+            ImGui::SameLine();
+            ImGui::Text("Counter: %d", _counter);
+            
+            ImGui::InputText("Text input", _textInput, sizeof(_textInput));
+            
+            ImGui::SliderFloat("Slider", &_sliderValue, 0.0f, 100.0f);
+            ImGui::ColorEdit3("Color", &_color.x);
+            
+            ImGui::Separator();
+            
+            if (ImGui::TreeNode("Advanced Controls")) {
+                static int selectedItem = 0;
+                const char* items[] = {"Item 1", "Item 2", "Item 3", "Item 4"};
+                ImGui::Combo("Combo", &selectedItem, items, 4);
+                
+                static bool checkbox1 = true;
+                static bool checkbox2 = false;
+                ImGui::Checkbox("Option 1", &checkbox1);
+                ImGui::Checkbox("Option 2", &checkbox2);
+                
+                static int radioButton = 0;
+                ImGui::RadioButton("Radio A", &radioButton, 0); ImGui::SameLine();
+                ImGui::RadioButton("Radio B", &radioButton, 1); ImGui::SameLine();
+                ImGui::RadioButton("Radio C", &radioButton, 2);
+                
+                ImGui::TreePop();
+            }
+            
+            ImGui::End();
+        }
+
+        if (_showHierarchy) {
+            ImGui::Begin("Scene Hierarchy", &_showHierarchy);
+            
+            ImGui::TextWrapped("Example scene hierarchy for level editor or 3D tool.");
+            ImGui::Separator();
+            
+            if (ImGui::TreeNode("Scene Root")) {
+                if (ImGui::TreeNode("Camera")) {
+                    ImGui::Text("Main Camera");
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNode("Objects")) {
+                    ImGui::Selectable("Cube");
+                    ImGui::Selectable("Sphere");
+                    ImGui::Selectable("Plane");
+                    ImGui::Selectable("Cylinder");
+                    ImGui::Selectable("Cone");
+                    ImGui::Selectable("Torus");
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNode("Lights")) {
+                    ImGui::Text("Directional Light");
+                    ImGui::TreePop();
+                }
+                ImGui::TreePop();
+            }
+            
+            ImGui::End();
+        }
+
+        if (_showProperties) {
+            ImGui::Begin("Properties", &_showProperties);
+            
+            ImGui::Text("Selected: Cube");
+            ImGui::Separator();
+            
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                static float pos[3] = {0, 0, 0};
+                static float rot[3] = {0, 0, 0};
+                static float scale[3] = {1, 1, 1};
+                
+                ImGui::DragFloat3("Position", pos, 0.1f);
+                ImGui::DragFloat3("Rotation", rot, 1.0f);
+                ImGui::DragFloat3("Scale", scale, 0.1f);
+            }
+            
+            if (ImGui::CollapsingHeader("Material")) {
+                ImGui::ColorEdit3("Diffuse", &_color.x);
+                ImGui::SliderFloat("Roughness", &_sliderValue, 0.0f, 1.0f);
+            }
+            
+            ImGui::End();
         }
 
         if (_showImageViewer) {
@@ -204,13 +334,14 @@ protected:
                 ImGui::Image(_loadedTexture->GetImGuiTextureID(), size);
             } else {
                 ImGui::TextDisabled("No image loaded.");
+                ImGui::TextWrapped("Click 'Open Image...' to load a texture file (PNG, JPG, BMP, TGA).");
             }
 
             ImGui::End();
         }
 
         if (_showSettings) {
-            ImGui::Begin("Settings", &_showSettings);
+            ImGui::Begin("About TinyVK", &_showSettings);
 
             if (ImGui::CollapsingHeader("About", ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::Text("TinyVK Version: %s", tvk::GetVersionString());
@@ -218,8 +349,28 @@ protected:
                 ImGui::Separator();
                 ImGui::TextWrapped(
                     "TinyVK provides a simple API for creating Vulkan applications "
-                    "with ImGui integration. Perfect for tools, editors, and prototyping."
+                    "with ImGui integration. Perfect for tools, editors, and games."
                 );
+            }
+
+            if (ImGui::CollapsingHeader("Application Modes")) {
+                ImGui::BulletText("GUI Mode - Pure ImGui interface for tools and editors");
+                ImGui::BulletText("Game Mode - Full-window rendering for games");
+                ImGui::BulletText("Hybrid Mode - Combines GUI with embedded 3D viewports");
+                ImGui::Separator();
+                ImGui::Text("Current Mode: %s", 
+                    GetMode() == tvk::AppMode::GUI ? "GUI" :
+                    GetMode() == tvk::AppMode::Game ? "Game" : "Hybrid");
+            }
+
+            if (ImGui::CollapsingHeader("Features Demonstrated")) {
+                ImGui::BulletText("Multiple geometry primitives (cube, sphere, torus, etc.)");
+                ImGui::BulletText("Graphics pipeline with vertex/fragment shaders");
+                ImGui::BulletText("Texture loading and display");
+                ImGui::BulletText("File dialogs");
+                ImGui::BulletText("Input handling (keyboard and mouse)");
+                ImGui::BulletText("ImGui docking and windows");
+                ImGui::BulletText("RenderWidget for embedded viewports");
             }
 
             ImGui::End();
@@ -253,14 +404,22 @@ private:
 
     bool _showDemoWindow = false;
     bool _showStats = true;
-    bool _showSettings = true;
+    bool _showSettings = false;
     bool _showImageViewer = true;
     bool _showGameViewport = true;
+    bool _showControls = true;
+    bool _showHierarchy = true;
+    bool _showProperties = true;
 
     tvk::Ref<tvk::Texture> _loadedTexture;
     std::string _imagePath;
     
     tvk::Scope<GameViewport> _gameViewport;
+    
+    int _counter;
+    char _textInput[256];
+    float _sliderValue = 50.0f;
+    glm::vec3 _color{1.0f, 0.5f, 0.2f};
 };
 
 int main() {

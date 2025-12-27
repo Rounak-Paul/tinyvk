@@ -170,20 +170,7 @@ endif()
 # ----------------------------------------------------------
 
 # Sandbox Application --------------------------------------
+# Comprehensive example demonstrating all TinyVK features
 add_executable(sandbox sandbox/main.cpp)
 target_link_libraries(sandbox PRIVATE tinyvk)
-# ----------------------------------------------------------
-
-# Example Applications -------------------------------------
-# GUI Mode Example (Qt-style tool)
-add_executable(gui_example examples/gui_example.cpp)
-target_link_libraries(gui_example PRIVATE tinyvk)
-
-# Game Mode Example (SDL3-style game)
-add_executable(game_example examples/game_example.cpp)
-target_link_libraries(game_example PRIVATE tinyvk)
-
-# Hybrid Mode Example (Level editor with viewport)
-add_executable(hybrid_example examples/hybrid_example.cpp)
-target_link_libraries(hybrid_example PRIVATE tinyvk)
 # ----------------------------------------------------------

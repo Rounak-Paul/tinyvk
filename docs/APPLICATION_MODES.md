@@ -32,10 +32,7 @@ int main() {
 }
 ```
 
-**Run example:**
-```bash
-./bin/gui_example
-```
+**See sandbox (`sandbox/main.cpp`) for a complete example.**
 
 ---
 
@@ -81,10 +78,7 @@ app.SetClearColor(0.1f, 0.1f, 0.1f);
 VulkanContext& ctx = app.GetContext();
 ```
 
-**Run example:**
-```bash
-./bin/game_example
-```
+**See sandbox (`sandbox/main.cpp`) for a complete example.**
 
 ---
 
@@ -128,10 +122,7 @@ int main() {
 }
 ```
 
-**Run example:**
-```bash
-./bin/hybrid_example
-```
+**See sandbox (`sandbox/main.cpp`) for a complete example.**
 
 ---
 
@@ -212,22 +203,20 @@ class Editor : public tvk::App {
 
 ---
 
-## Examples
+## Sandbox Example
 
-1. **GUI Example** (`examples/gui_example.cpp`)
-   - Pure ImGui tool
-   - Multiple windows
-   - Input widgets
+The `sandbox/main.cpp` provides a comprehensive example demonstrating:
+- All three application modes (GUI, Game, Hybrid)
+- RenderWidget for embedded 3D viewports
+- Multiple geometry primitives (cube, sphere, torus, etc.)
+- Graphics pipeline with shaders
+- Texture loading and display
+- File dialogs
+- Input handling
+- ImGui docking, menus, and controls
+- Scene hierarchy and properties panels
 
-2. **Game Example** (`examples/game_example.cpp`)
-   - Direct rendering
-   - No UI overhead
-   - SDL3-style
-
-3. **Hybrid Example** (`examples/hybrid_example.cpp`)
-   - Level editor
-   - Viewport + Properties + Hierarchy
-   - Best of both worlds
+Run it with: `./bin/sandbox`
 
 ---
 

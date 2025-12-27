@@ -65,20 +65,12 @@ cmake .. -G "Visual Studio 17 2022"
 cmake --build . --config Release
 ```
 
-### Run Examples
+### Run Sandbox
 
 ```bash
-# Sandbox (Hybrid mode with viewports)
+# Comprehensive example demonstrating all TinyVK features
+# Includes GUI controls, 3D viewport, texture loading, and more
 ./bin/sandbox
-
-# GUI-only tool example
-./bin/gui_example
-
-# Game-only rendering example
-./bin/game_example
-
-# Hybrid level editor example
-./bin/hybrid_example
 ```
 
 ## Quick Start
