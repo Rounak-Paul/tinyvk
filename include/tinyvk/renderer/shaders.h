@@ -46,5 +46,77 @@ void main() {
 }
 )";
 
+constexpr const char* array_multiply_comp = R"(
+#version 450
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer InputBuffer {
+    float inputData[];
+};
+
+layout(std430, binding = 1) writeonly buffer OutputBuffer {
+    float outputData[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint count;
+    float multiplier;
+} push;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    
+    if (index >= push.count) {
+        return;
+    }
+    
+    outputData[index] = inputData[index] * push.multiplier;
+}
+)";
+
+constexpr const char* particle_update_comp = R"(
+#version 450
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+struct Particle {
+    vec4 position;
+    vec4 velocity;
+    vec4 color;
+    float life;
+    float size;
+    float pad0;
+    float pad1;
+};
+
+layout(std430, binding = 0) buffer ParticleBuffer {
+    Particle particles[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint particleCount;
+    float deltaTime;
+    float gravity;
+    float pad;
+} push;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    
+    if (index >= push.particleCount) {
+        return;
+    }
+    
+    Particle p = particles[index];
+    
+    p.velocity.y -= push.gravity * push.deltaTime;
+    p.position.xyz += p.velocity.xyz * push.deltaTime;
+    p.life -= push.deltaTime;
+    
+    particles[index] = p;
+}
+)";
+
 } // namespace shaders
 } // namespace tvk

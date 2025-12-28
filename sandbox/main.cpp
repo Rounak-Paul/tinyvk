@@ -7,6 +7,7 @@
  * - RenderWidget for embedded viewports
  * - Mesh/geometry rendering with various primitives
  * - Graphics pipeline usage
+ * - Compute pipeline usage
  * - Texture loading and ImGui integration
  * - File dialogs
  * - Input handling
@@ -17,8 +18,12 @@
 #include <imgui.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
+#include <cstring>
 #include "tinyvk/renderer/pipeline.h"
 #include "tinyvk/renderer/shaders.h"
+#include "tinyvk/renderer/buffer.h"
+#include "tinyvk/renderer/renderer.h"
 
 class GameViewport : public tvk::RenderWidget {
 protected:
@@ -134,6 +139,8 @@ protected:
         
         _counter = 0;
         _textInput[0] = '\0';
+        
+        InitComputeDemo();
     }
 
     void OnUpdate() override {
@@ -170,6 +177,7 @@ protected:
                 ImGui::MenuItem("Stats", nullptr, &_showStats);
                 ImGui::MenuItem("Image Viewer", nullptr, &_showImageViewer);
                 ImGui::MenuItem("3D Viewport", nullptr, &_showGameViewport);
+                ImGui::MenuItem("Compute Demo", nullptr, &_showComputeDemo);
                 ImGui::MenuItem("Controls", nullptr, &_showControls);
                 ImGui::MenuItem("Scene Hierarchy", nullptr, &_showHierarchy);
                 ImGui::MenuItem("Properties", nullptr, &_showProperties);
@@ -366,6 +374,7 @@ protected:
             if (ImGui::CollapsingHeader("Features Demonstrated")) {
                 ImGui::BulletText("Multiple geometry primitives (cube, sphere, torus, etc.)");
                 ImGui::BulletText("Graphics pipeline with vertex/fragment shaders");
+                ImGui::BulletText("Compute pipeline for GPU computation");
                 ImGui::BulletText("Texture loading and display");
                 ImGui::BulletText("File dialogs");
                 ImGui::BulletText("Input handling (keyboard and mouse)");
@@ -375,14 +384,165 @@ protected:
 
             ImGui::End();
         }
+
+        if (_showComputeDemo) {
+            ImGui::Begin("Compute Pipeline Demo", &_showComputeDemo);
+            
+            ImGui::TextWrapped("GPU compute shader multiplying array values. Input array is multiplied by a factor on the GPU.");
+            ImGui::Separator();
+            
+            ImGui::SliderFloat("Multiplier", &_computeMultiplier, 0.1f, 10.0f);
+            
+            if (ImGui::Button("Run Compute Shader")) {
+                RunComputeShader();
+            }
+            
+            ImGui::SameLine();
+            ImGui::Text("Executions: %d", _computeExecutions);
+            
+            ImGui::Separator();
+            
+            if (ImGui::CollapsingHeader("Input Data", ImGuiTreeNodeFlags_DefaultOpen)) {
+                for (int i = 0; i < COMPUTE_DATA_SIZE; i++) {
+                    ImGui::Text("[%d] = %.2f", i, _computeInputData[i]);
+                }
+            }
+            
+            if (ImGui::CollapsingHeader("Output Data (GPU Result)", ImGuiTreeNodeFlags_DefaultOpen)) {
+                for (int i = 0; i < COMPUTE_DATA_SIZE; i++) {
+                    float expected = _computeInputData[i] * _computeMultiplier;
+                    bool correct = std::abs(_computeOutputData[i] - expected) < 0.01f;
+                    if (correct) {
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[%d] = %.2f", i, _computeOutputData[i]);
+                    } else {
+                        ImGui::Text("[%d] = %.2f", i, _computeOutputData[i]);
+                    }
+                }
+            }
+            
+            if (ImGui::CollapsingHeader("Compute Shader Code")) {
+                ImGui::TextWrapped("%s", tvk::shaders::array_multiply_comp);
+            }
+            
+            ImGui::End();
+        }
     }
 
     void OnStop() override {
         TVK_LOG_INFO("Sandbox application stopped");
         _loadedTexture.reset();
+        CleanupComputeDemo();
     }
 
 private:
+    static constexpr int COMPUTE_DATA_SIZE = 8;
+    
+    struct ComputePushData {
+        tvk::u32 count;
+        float multiplier;
+    };
+    
+    void InitComputeDemo() {
+        _computePipeline = tvk::CreateScope<tvk::ComputePipeline>();
+        if (!_computePipeline->Create(GetRenderer(), tvk::shaders::array_multiply_comp)) {
+            TVK_LOG_ERROR("Failed to create compute pipeline");
+            return;
+        }
+        
+        for (int i = 0; i < COMPUTE_DATA_SIZE; i++) {
+            _computeInputData[i] = static_cast<float>(i + 1);
+            _computeOutputData[i] = 0.0f;
+        }
+        
+        _computeInputBuffer = tvk::Buffer::Create(
+            GetRenderer(), 
+            sizeof(float) * COMPUTE_DATA_SIZE, 
+            tvk::BufferUsage::StorageShared, 
+            _computeInputData
+        );
+        
+        _computeOutputBuffer = tvk::Buffer::Create(
+            GetRenderer(), 
+            sizeof(float) * COMPUTE_DATA_SIZE, 
+            tvk::BufferUsage::StorageShared, 
+            nullptr
+        );
+        
+        if (_computeInputBuffer && _computeOutputBuffer) {
+            _computePipeline->BindStorageBuffers(_computeInputBuffer.get(), _computeOutputBuffer.get());
+            _computePipeline->UpdateDescriptors();
+            TVK_LOG_INFO("Compute demo initialized with {} elements", COMPUTE_DATA_SIZE);
+        }
+    }
+    
+    void CleanupComputeDemo() {
+        if (_computePipeline) {
+            _computePipeline->Destroy();
+        }
+        _computeInputBuffer.reset();
+        _computeOutputBuffer.reset();
+    }
+    
+    void RunComputeShader() {
+        if (!_computePipeline || !_computeInputBuffer || !_computeOutputBuffer) return;
+        
+        auto& ctx = GetRenderer()->GetContext();
+        VkDevice device = ctx.GetDevice();
+        VkQueue queue = ctx.GetGraphicsQueue();
+        VkCommandPool cmdPool = ctx.GetCommandPool();
+        
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = cmdPool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+        
+        VkCommandBuffer cmd;
+        vkAllocateCommandBuffers(device, &allocInfo, &cmd);
+        
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(cmd, &beginInfo);
+        
+        _computePipeline->Bind(cmd);
+        
+        ComputePushData pushData;
+        pushData.count = COMPUTE_DATA_SIZE;
+        pushData.multiplier = _computeMultiplier;
+        _computePipeline->SetPushConstants(cmd, pushData);
+        
+        _computePipeline->Dispatch(cmd, (COMPUTE_DATA_SIZE + 255) / 256, 1, 1);
+        
+        VkMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
+                             0, 1, &barrier, 0, nullptr, 0, nullptr);
+        
+        vkEndCommandBuffer(cmd);
+        
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmd;
+        
+        vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(queue);
+        
+        void* mappedData = _computeOutputBuffer->Map();
+        if (mappedData) {
+            memcpy(_computeOutputData, mappedData, sizeof(float) * COMPUTE_DATA_SIZE);
+            _computeOutputBuffer->Unmap();
+        }
+        
+        vkFreeCommandBuffers(device, cmdPool, 1, &cmd);
+        
+        _computeExecutions++;
+        TVK_LOG_INFO("Compute shader executed (multiplier: {})", _computeMultiplier);
+    }
+
     void OpenImageFile() {
         auto result = tvk::FileDialog::OpenFile(
             {{"Image Files", "png,jpg,jpeg,bmp,tga"}},
@@ -407,6 +567,7 @@ private:
     bool _showSettings = false;
     bool _showImageViewer = true;
     bool _showGameViewport = true;
+    bool _showComputeDemo = true;
     bool _showControls = true;
     bool _showHierarchy = true;
     bool _showProperties = true;
@@ -415,6 +576,14 @@ private:
     std::string _imagePath;
     
     tvk::Scope<GameViewport> _gameViewport;
+    
+    tvk::Scope<tvk::ComputePipeline> _computePipeline;
+    tvk::Ref<tvk::Buffer> _computeInputBuffer;
+    tvk::Ref<tvk::Buffer> _computeOutputBuffer;
+    float _computeInputData[COMPUTE_DATA_SIZE] = {};
+    float _computeOutputData[COMPUTE_DATA_SIZE] = {};
+    float _computeMultiplier = 2.0f;
+    int _computeExecutions = 0;
     
     int _counter;
     char _textInput[256];

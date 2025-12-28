@@ -23,6 +23,7 @@ enum class BufferUsage {
     Index,
     Uniform,
     Storage,
+    StorageShared,
     Staging
 };
 

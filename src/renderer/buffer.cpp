@@ -214,6 +214,8 @@ VkBufferUsageFlags Buffer::ToVkUsage(BufferUsage usage) {
             return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         case BufferUsage::Storage:
             return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        case BufferUsage::StorageShared:
+            return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         case BufferUsage::Staging:
             return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         default:
@@ -227,6 +229,7 @@ VkMemoryPropertyFlags Buffer::GetMemoryProperties(BufferUsage usage) {
         case BufferUsage::Index:
         case BufferUsage::Storage:
             return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        case BufferUsage::StorageShared:
         case BufferUsage::Uniform:
         case BufferUsage::Staging:
             return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
