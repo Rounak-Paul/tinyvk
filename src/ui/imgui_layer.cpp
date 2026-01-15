@@ -91,6 +91,9 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
         } else if (std::strcmp(config.embeddedFontName, "droid") == 0) {
             fontData = droid_sans;
             fontDataSize = droid_sans_size;
+        } else if (std::strcmp(config.embeddedFontName, "departure") == 0) {
+            fontData = departure_mono;
+            fontDataSize = departure_mono_size;
         }
         
         ImFontConfig fontConfig;

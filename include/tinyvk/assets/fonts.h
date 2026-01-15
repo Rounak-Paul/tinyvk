@@ -58,4 +58,7 @@ extern unsigned int fa_solid_900_size;
 extern unsigned char fa_regular_400[];
 extern unsigned int fa_regular_400_size;
 
+extern unsigned char departure_mono[];
+extern unsigned int departure_mono_size;
+
 } // namespace tvk

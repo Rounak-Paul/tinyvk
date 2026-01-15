@@ -26,7 +26,7 @@ struct ImGuiConfig {
     const char* fontPath = nullptr;
     float fontSize = 16.0f;
     bool useEmbeddedFont = true;
-    const char* embeddedFontName = "roboto";
+    const char* embeddedFontName = "departure";
 };
 
 /**
