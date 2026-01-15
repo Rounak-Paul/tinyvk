@@ -48,10 +48,6 @@
 // UI - Custom rendering widgets
 #include "ui/render_widget.h"
 
-// UI - Retro 8-bit RPG style theme and controls
-#include "ui/retro_theme.h"
-#include "ui/retro_ui.h"
-
 // Version info
 #define TINYVK_VERSION_MAJOR 1
 #define TINYVK_VERSION_MINOR 0

@@ -139,8 +139,6 @@ set(TINYVK_SOURCES
     src/renderer/shader_compiler.cpp
     src/ui/imgui_layer.cpp
     src/ui/render_widget.cpp
-    src/ui/retro_theme.cpp
-    src/ui/retro_ui.cpp
     src/assets/fonts.cpp
 )
 

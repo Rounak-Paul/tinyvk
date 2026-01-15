@@ -15,8 +15,6 @@
  */
 
 #include <tinyvk/tinyvk.h>
-#include <tinyvk/ui/retro_ui.h>
-#include <tinyvk/ui/retro_theme.h>
 #include <imgui.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -181,7 +179,6 @@ protected:
                 ImGui::MenuItem("3D Viewport", nullptr, &_showGameViewport);
                 ImGui::MenuItem("Compute Demo", nullptr, &_showComputeDemo);
                 ImGui::MenuItem("Controls", nullptr, &_showControls);
-                ImGui::MenuItem("Retro UI Demo", nullptr, &_showRetroDemo);
                 ImGui::MenuItem("Scene Hierarchy", nullptr, &_showHierarchy);
                 ImGui::MenuItem("Properties", nullptr, &_showProperties);
                 ImGui::MenuItem("About", nullptr, &_showSettings);
@@ -198,10 +195,6 @@ protected:
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
-        }
-
-        if (_showRetroDemo) {
-            ShowRetroUIDemo();
         }
 
         if (_showStats) {
@@ -569,153 +562,6 @@ private:
         }
     }
 
-    void ShowRetroUIDemo() {
-        if (tvk::RetroUI::begin_window("Retro UI Demo", &_showRetroDemo)) {
-            tvk::RetroUI::text("8-Bit RPG Style UI Controls");
-            tvk::RetroUI::separator();
-
-            if (tvk::RetroUI::collapsing_header("Theme Selection", true)) {
-                static int currentTheme = 0;
-                const char* themes[] = {"Dark", "Gameboy", "NES", "SNES", "C64"};
-                
-                tvk::RetroUI::text("Select Theme:");
-                for (int i = 0; i < 5; i++) {
-                    if (tvk::RetroUI::radio_button(themes[i], &currentTheme, i)) {
-                        switch (i) {
-                            case 0: tvk::RetroTheme::get().set_palette(tvk::RetroPalette::default_dark()); break;
-                            case 1: tvk::RetroTheme::get().set_palette(tvk::RetroPalette::gameboy()); break;
-                            case 2: tvk::RetroTheme::get().set_palette(tvk::RetroPalette::nes()); break;
-                            case 3: tvk::RetroTheme::get().set_palette(tvk::RetroPalette::snes()); break;
-                            case 4: tvk::RetroTheme::get().set_palette(tvk::RetroPalette::c64()); break;
-                        }
-                        tvk::RetroTheme::get().apply();
-                    }
-                    if (i < 4) tvk::RetroUI::same_line();
-                }
-            }
-
-            if (tvk::RetroUI::collapsing_header("Buttons", true)) {
-                tvk::RetroUI::text("Button Styles:");
-                tvk::RetroUI::spacing();
-                
-                if (tvk::RetroUI::button("Normal", tvk::Vec2(100, 0))) {
-                    TVK_LOG_INFO("Normal button clicked");
-                }
-                tvk::RetroUI::same_line();
-                if (tvk::RetroUI::button("Primary", tvk::Vec2(100, 0), tvk::RetroButtonStyle::Primary)) {
-                    TVK_LOG_INFO("Primary button clicked");
-                }
-                tvk::RetroUI::same_line();
-                if (tvk::RetroUI::button("Secondary", tvk::Vec2(100, 0), tvk::RetroButtonStyle::Secondary)) {
-                    TVK_LOG_INFO("Secondary button clicked");
-                }
-
-                if (tvk::RetroUI::button("Success", tvk::Vec2(100, 0), tvk::RetroButtonStyle::Success)) {
-                    TVK_LOG_INFO("Success button clicked");
-                }
-                tvk::RetroUI::same_line();
-                if (tvk::RetroUI::button("Danger", tvk::Vec2(100, 0), tvk::RetroButtonStyle::Danger)) {
-                    TVK_LOG_INFO("Danger button clicked");
-                }
-                tvk::RetroUI::same_line();
-                if (tvk::RetroUI::button("Ghost", tvk::Vec2(100, 0), tvk::RetroButtonStyle::Ghost)) {
-                    TVK_LOG_INFO("Ghost button clicked");
-                }
-
-                tvk::RetroUI::spacing();
-                tvk::RetroUI::text("Icon Buttons:");
-                tvk::RetroUI::icon_button(tvk::RetroIconType::Heart);
-                tvk::RetroUI::same_line();
-                tvk::RetroUI::icon_button(tvk::RetroIconType::Star);
-                tvk::RetroUI::same_line();
-                tvk::RetroUI::icon_button(tvk::RetroIconType::Sword);
-                tvk::RetroUI::same_line();
-                tvk::RetroUI::icon_button(tvk::RetroIconType::Shield);
-                tvk::RetroUI::same_line();
-                tvk::RetroUI::icon_button(tvk::RetroIconType::Key);
-                tvk::RetroUI::same_line();
-                tvk::RetroUI::icon_button(tvk::RetroIconType::Coin);
-            }
-
-            if (tvk::RetroUI::collapsing_header("Input Controls", true)) {
-                static char textBuf[128] = "Hero Name";
-                tvk::RetroUI::input_text("Name", textBuf, sizeof(textBuf));
-
-                static int hp = 100;
-                tvk::RetroUI::slider_int("HP", &hp, 0, 999);
-
-                static float mp = 50.0f;
-                tvk::RetroUI::slider_float("MP", &mp, 0.0f, 100.0f);
-
-                tvk::RetroUI::text("Progress Bar:");
-                tvk::RetroUI::progress_bar(hp / 999.0f, tvk::Vec2(-1, 20), "HP");
-
-                static bool hasItem1 = true;
-                static bool hasItem2 = false;
-                tvk::RetroUI::checkbox("Potion", &hasItem1);
-                tvk::RetroUI::same_line();
-                tvk::RetroUI::checkbox("Elixir", &hasItem2);
-            }
-
-            if (tvk::RetroUI::collapsing_header("Lists & Combos", true)) {
-                static int selectedClass = 0;
-                const char* classes[] = {"Warrior", "Mage", "Archer", "Thief", "Paladin"};
-                tvk::RetroUI::combo("Class", &selectedClass, classes, 5);
-
-                tvk::RetroUI::text("Inventory:");
-                if (tvk::RetroUI::begin_listbox("##inventory", tvk::Vec2(-1, 100))) {
-                    static int selectedItem = 0;
-                    const char* items[] = {"Iron Sword", "Steel Shield", "Health Potion", "Mana Crystal", "Golden Key"};
-                    for (int i = 0; i < 5; i++) {
-                        if (tvk::RetroUI::selectable(items[i], selectedItem == i)) {
-                            selectedItem = i;
-                        }
-                    }
-                    tvk::RetroUI::end_listbox();
-                }
-            }
-
-            if (tvk::RetroUI::collapsing_header("Custom Drawing", true)) {
-                tvk::Vec2 pos = tvk::RetroUI::get_cursor_pos();
-                tvk::Vec2 winPos = tvk::RetroUI::get_window_pos();
-                
-                tvk::RetroRect frameRect(winPos.x + pos.x, winPos.y + pos.y, 200, 80);
-                const auto& palette = tvk::RetroTheme::get().get_palette();
-                
-                tvk::RetroUI::draw_rpg_frame(frameRect, palette.bg_dark, palette.border_light, palette.border_dark);
-                tvk::RetroUI::draw_text(tvk::Vec2(frameRect.x + 10, frameRect.y + 10), "RPG Frame", palette.text_primary);
-                tvk::RetroUI::draw_text(tvk::Vec2(frameRect.x + 10, frameRect.y + 30), "With custom borders", palette.text_secondary);
-                
-                tvk::RetroUI::draw_icon(tvk::Vec2(frameRect.x + 170, frameRect.y + 40), tvk::RetroIconType::Chest, palette.accent_primary, 24.0f);
-                
-                tvk::RetroUI::set_cursor_pos(tvk::Vec2(pos.x, pos.y + 90));
-            }
-
-            if (tvk::RetroUI::collapsing_header("Tabs", false)) {
-                if (tvk::RetroUI::begin_tab_bar("##tabs")) {
-                    if (tvk::RetroUI::begin_tab_item("Stats")) {
-                        tvk::RetroUI::text("STR: 15");
-                        tvk::RetroUI::text("DEX: 12");
-                        tvk::RetroUI::text("INT: 10");
-                        tvk::RetroUI::end_tab_item();
-                    }
-                    if (tvk::RetroUI::begin_tab_item("Skills")) {
-                        tvk::RetroUI::text("Fire Ball - Lv.3");
-                        tvk::RetroUI::text("Heal - Lv.2");
-                        tvk::RetroUI::end_tab_item();
-                    }
-                    if (tvk::RetroUI::begin_tab_item("Quests")) {
-                        tvk::RetroUI::text("- Defeat the Dragon");
-                        tvk::RetroUI::text("- Find the Lost Artifact");
-                        tvk::RetroUI::end_tab_item();
-                    }
-                    tvk::RetroUI::end_tab_bar();
-                }
-            }
-        }
-        tvk::RetroUI::end_window();
-    }
-
     bool _showDemoWindow = false;
     bool _showStats = true;
     bool _showSettings = false;
@@ -723,7 +569,6 @@ private:
     bool _showGameViewport = true;
     bool _showComputeDemo = true;
     bool _showControls = true;
-    bool _showRetroDemo = true;
     bool _showHierarchy = true;
     bool _showProperties = true;
 

@@ -4,7 +4,6 @@
  */
 
 #include "tinyvk/ui/imgui_layer.h"
-#include "tinyvk/ui/retro_theme.h"
 #include "tinyvk/renderer/renderer.h"
 #include "tinyvk/renderer/context.h"
 #include "tinyvk/core/log.h"
@@ -80,10 +79,7 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
         void* fontData = roboto_medium;
         int fontDataSize = roboto_medium_size;
         
-        if (config.usePixelFont) {
-            fontData = proggy_clean;
-            fontDataSize = proggy_clean_size;
-        } else if (std::strcmp(config.embeddedFontName, "roboto") == 0) {
+        if (std::strcmp(config.embeddedFontName, "roboto") == 0) {
             fontData = roboto_medium;
             fontDataSize = roboto_medium_size;
         } else if (std::strcmp(config.embeddedFontName, "lexend") == 0) {
@@ -95,18 +91,12 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
         } else if (std::strcmp(config.embeddedFontName, "droid") == 0) {
             fontData = droid_sans;
             fontDataSize = droid_sans_size;
-        } else if (std::strcmp(config.embeddedFontName, "proggy") == 0) {
-            fontData = proggy_clean;
-            fontDataSize = proggy_clean_size;
-        } else if (std::strcmp(config.embeddedFontName, "proggy_tiny") == 0) {
-            fontData = proggy_tiny;
-            fontDataSize = proggy_tiny_size;
         }
         
         ImFontConfig fontConfig;
         fontConfig.FontDataOwnedByAtlas = false;
         io.Fonts->AddFontFromMemoryTTF(fontData, fontDataSize, config.fontSize * config.fontScale, &fontConfig);
-        TVK_LOG_INFO("Loaded embedded font: {}", config.usePixelFont ? "proggy (pixel)" : config.embeddedFontName);
+        TVK_LOG_INFO("Loaded embedded font: {}", config.embeddedFontName);
     } else {
         io.FontGlobalScale = config.fontScale;
     }
@@ -298,76 +288,29 @@ bool ImGuiLayer::WantsCaptureMouse() const {
     return ImGui::GetIO().WantCaptureMouse;
 }
 
-void ImGuiLayer::SetRetroTheme(ThemeStyle style) {
-    RetroPalette palette;
-    
-    switch (style) {
-        case ThemeStyle::RetroGameboy:
-            palette = RetroPalette::gameboy();
-            break;
-        case ThemeStyle::RetroNES:
-            palette = RetroPalette::nes();
-            break;
-        case ThemeStyle::RetroSNES:
-            palette = RetroPalette::snes();
-            break;
-        case ThemeStyle::RetroC64:
-            palette = RetroPalette::c64();
-            break;
-        case ThemeStyle::RetroDark:
-        default:
-            palette = RetroPalette::default_dark();
-            break;
-    }
-
-    RetroTheme::get().set_palette(palette);
-    RetroTheme::get().apply();
-    TVK_LOG_INFO("Applied retro theme");
-}
-
-void ImGuiLayer::SetTheme(ThemeStyle style) {
-    switch (style) {
-        case ThemeStyle::Dark:
-            SetDarkTheme();
-            break;
-        case ThemeStyle::Light:
-            SetLightTheme();
-            break;
-        case ThemeStyle::RetroDark:
-        case ThemeStyle::RetroGameboy:
-        case ThemeStyle::RetroNES:
-        case ThemeStyle::RetroSNES:
-        case ThemeStyle::RetroC64:
-            SetRetroTheme(style);
-            break;
-    }
-}
-
 void ImGuiLayer::SetupStyle() {
-    SetTheme(m_Config.theme);
+    SetDarkTheme();
 
-    if (m_Config.theme == ThemeStyle::Dark || m_Config.theme == ThemeStyle::Light) {
-        auto& style = ImGui::GetStyle();
-        style.WindowRounding = 6.0f;
-        style.ChildRounding = 4.0f;
-        style.FrameRounding = 4.0f;
-        style.GrabRounding = 4.0f;
-        style.PopupRounding = 4.0f;
-        style.ScrollbarRounding = 6.0f;
-        style.TabRounding = 4.0f;
-        style.WindowBorderSize = 1.0f;
-        style.FrameBorderSize = 0.0f;
-        style.PopupBorderSize = 1.0f;
-        style.WindowPadding = ImVec2(10.0f, 10.0f);
-        style.FramePadding = ImVec2(6.0f, 4.0f);
-        style.ItemSpacing = ImVec2(8.0f, 6.0f);
-        style.ItemInnerSpacing = ImVec2(6.0f, 4.0f);
-        style.IndentSpacing = 20.0f;
-        style.ScrollbarSize = 14.0f;
-        style.GrabMinSize = 10.0f;
-        style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
-        style.SeparatorTextBorderSize = 2.0f;
-    }
+    auto& style = ImGui::GetStyle();
+    style.WindowRounding = 6.0f;
+    style.ChildRounding = 4.0f;
+    style.FrameRounding = 4.0f;
+    style.GrabRounding = 4.0f;
+    style.PopupRounding = 4.0f;
+    style.ScrollbarRounding = 6.0f;
+    style.TabRounding = 4.0f;
+    style.WindowBorderSize = 1.0f;
+    style.FrameBorderSize = 0.0f;
+    style.PopupBorderSize = 1.0f;
+    style.WindowPadding = ImVec2(10.0f, 10.0f);
+    style.FramePadding = ImVec2(6.0f, 4.0f);
+    style.ItemSpacing = ImVec2(8.0f, 6.0f);
+    style.ItemInnerSpacing = ImVec2(6.0f, 4.0f);
+    style.IndentSpacing = 20.0f;
+    style.ScrollbarSize = 14.0f;
+    style.GrabMinSize = 10.0f;
+    style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
+    style.SeparatorTextBorderSize = 2.0f;
 }
 
 } // namespace tvk

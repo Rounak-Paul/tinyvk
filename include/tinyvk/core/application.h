@@ -7,7 +7,6 @@
 
 #include "types.h"
 #include "window.h"
-#include "../ui/imgui_layer.h"
 #include <string>
 #include <chrono>
 #include <vector>
@@ -44,7 +43,6 @@ struct AppConfig {
     bool decorated = true;
     AppMode mode = AppMode::Hybrid;
     bool enableDockspace = true;
-    ImGuiConfig imgui;
 };
 
 // Legacy alias
