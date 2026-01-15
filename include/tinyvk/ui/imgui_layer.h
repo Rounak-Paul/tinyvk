@@ -16,6 +16,16 @@ namespace tvk {
 class VulkanContext;
 class Renderer;
 
+enum class ThemeStyle {
+    Dark,
+    Light,
+    RetroDark,
+    RetroGameboy,
+    RetroNES,
+    RetroSNES,
+    RetroC64
+};
+
 /**
  * @brief ImGui layer configuration
  */
@@ -27,6 +37,8 @@ struct ImGuiConfig {
     float fontSize = 16.0f;
     bool useEmbeddedFont = true;
     const char* embeddedFontName = "roboto";
+    ThemeStyle theme = ThemeStyle::Dark;
+    bool usePixelFont = false;
 };
 
 /**
@@ -70,6 +82,16 @@ public:
      * @brief Set light theme colors
      */
     void SetLightTheme();
+
+    /**
+     * @brief Set retro 8-bit RPG theme
+     */
+    void SetRetroTheme(ThemeStyle style = ThemeStyle::RetroDark);
+
+    /**
+     * @brief Apply a theme by style enum
+     */
+    void SetTheme(ThemeStyle style);
 
     /**
      * @brief Block input events from reaching the application
