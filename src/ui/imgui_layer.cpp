@@ -252,10 +252,11 @@ void ImGuiLayer::SetLightTheme() {
     ImGui::StyleColorsLight();
 }
 
-void ImGuiLayer::BeginDockspace() {
+void ImGuiLayer::BeginDockspace(float bottomOffset) {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
+    
     ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, viewport->WorkSize.y - bottomOffset));
     ImGui::SetNextWindowViewport(viewport->ID);
 
     ImGuiWindowFlags windowFlags =

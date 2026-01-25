@@ -143,6 +143,13 @@ protected:
     virtual void OnUI() {}
     
     /**
+     * @brief Override to specify space reserved at the bottom of the dockspace
+     * Useful for status bars or other fixed bottom elements
+     * @return Height in pixels to reserve at the bottom (default: 0)
+     */
+    virtual float GetDockspaceBottomOffset() { return 0.0f; }
+    
+    /**
      * @brief Called before rendering starts (Game/Hybrid modes)
      * Use this to prepare resources before render pass
      */

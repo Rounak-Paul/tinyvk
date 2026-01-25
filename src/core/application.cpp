@@ -165,7 +165,7 @@ void App::MainLoop() {
                 _imguiLayer->Begin();
                 
                 if (_enableDockspace) {
-                    _imguiLayer->BeginDockspace();
+                    _imguiLayer->BeginDockspace(GetDockspaceBottomOffset());
                 }
                 
                 OnUI();
