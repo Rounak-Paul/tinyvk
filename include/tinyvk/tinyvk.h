@@ -42,6 +42,10 @@
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
 #include "renderer/material.h"
+#include "renderer/light.h"
+#include "renderer/view.h"
+#include "renderer/render_queue.h"
+#include "renderer/skybox.h"
 
 // Scene management and ECS
 #include "scene/camera.h"
@@ -52,6 +56,7 @@
 // Assets - Embedded fonts and icons
 #include "assets/fonts.h"
 #include "assets/icons_font_awesome.h"
+#include "assets/model_loader.h"
 
 // UI - Custom rendering widgets
 #include "ui/render_widget.h"

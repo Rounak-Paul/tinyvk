@@ -27,10 +27,11 @@ public:
     Pipeline() = default;
     ~Pipeline();
 
-    bool Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource);
+    bool Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE);
     void Destroy();
     
     void Bind(VkCommandBuffer cmd);
+    void BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet descriptorSet);
     void SetPushConstants(VkCommandBuffer cmd, const PushConstants& constants);
     
     VkPipeline GetHandle() const { return _pipeline; }

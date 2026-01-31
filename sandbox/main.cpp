@@ -27,6 +27,7 @@
 #include "tinyvk/renderer/shaders.h"
 #include "tinyvk/renderer/buffer.h"
 #include "tinyvk/renderer/renderer.h"
+#include "tinyvk/renderer/scene_lighting.h"
 
 class GameViewport : public tvk::RenderWidget {
 protected:
@@ -62,47 +63,100 @@ protected:
         ground.GetComponent<tvk::TransformComponent>().position = tvk::Vec3(0.0f, -1.0f, 0.0f);
         ground.AddComponent<tvk::MeshComponent>(tvk::Geometry::CreatePlane(GetRenderer(), 10.0f, 10.0f, 10, 10));
         
+        auto sun = _scene->CreateEntity("Sun Light");
+        sun.GetComponent<tvk::TransformComponent>().rotation = tvk::Vec3(-50.0f, -30.0f, 0.0f);
+        auto& sun_light = sun.AddComponent<tvk::DirectionalLightComponent>();
+        sun_light.color = tvk::Vec3(1.0f, 0.95f, 0.9f);
+        sun_light.intensity = 1.0f;
+        
+        auto point = _scene->CreateEntity("Point Light");
+        point.GetComponent<tvk::TransformComponent>().position = tvk::Vec3(0.0f, 2.0f, 2.0f);
+        auto& point_light = point.AddComponent<tvk::PointLightComponent>();
+        point_light.color = tvk::Vec3(0.8f, 0.4f, 0.1f);
+        point_light.intensity = 2.0f;
+        point_light.radius = 10.0f;
+        
+        auto ambient = _scene->CreateEntity("Ambient Light");
+        auto& ambient_light = ambient.AddComponent<tvk::AmbientLightComponent>();
+        ambient_light.color = tvk::Vec3(0.1f, 0.1f, 0.15f);
+        ambient_light.intensity = 0.3f;
+        
         TVK_LOG_INFO("Scene created with {} entities", _scene->GetEntityCount());
         
         SetClearColor(0.1f, 0.1f, 0.15f, 1.0f);
         
+        _sceneLighting = tvk::CreateScope<tvk::SceneLighting>();
+        if (!_sceneLighting->Create(GetRenderer(), GetRenderPass())) {
+            TVK_LOG_ERROR("Failed to create scene lighting");
+        }
+        
         _pipeline = tvk::CreateScope<tvk::Pipeline>();
-        if (!_pipeline->Create(GetRenderer(), GetRenderPass(), tvk::shaders::basic_vert, tvk::shaders::basic_frag)) {
+        if (!_pipeline->Create(GetRenderer(), GetRenderPass(), tvk::shaders::basic_vert, tvk::shaders::basic_frag, _sceneLighting->GetDescriptorSetLayout())) {
             TVK_LOG_ERROR("Failed to create graphics pipeline");
         }
     }
 
     void OnRenderFrame(VkCommandBuffer cmd) override {
-        BeginRenderPass(cmd);
+        if (!_pipeline || !_scene || !_sceneLighting || GetWidth() == 0 || GetHeight() == 0) {
+            BeginRenderPass(cmd);
+            EndRenderPass(cmd);
+            return;
+        }
         
-        if (_pipeline && _scene && GetWidth() > 0 && GetHeight() > 0) {
-            _pipeline->Bind(cmd);
+        tvk::Camera* camera = _scene->GetActiveCameraPtr();
+        if (!camera) {
+            BeginRenderPass(cmd);
+            EndRenderPass(cmd);
+            return;
+        }
+        
+        _sceneLighting->CollectLights(_scene.get(), camera->GetPosition());
+        _sceneLighting->UpdateUBO();
+        
+        auto mesh_view = _scene->GetAllEntitiesWith<tvk::TransformComponent, tvk::MeshComponent>();
+        
+        if (_sceneLighting->HasDirectionalLight() && _sceneLighting->GetShadowsEnabled()) {
+            _sceneLighting->BeginShadowPass(cmd);
+            _sceneLighting->BindShadowPipeline(cmd);
             
-            tvk::Camera* camera = _scene->GetActiveCameraPtr();
-            if (!camera) {
-                EndRenderPass(cmd);
-                return;
-            }
-            
-            tvk::Mat4 view_projection = camera->GetViewProjectionMatrix();
-            
-            auto view = _scene->GetAllEntitiesWith<tvk::TransformComponent, tvk::MeshComponent>();
-            for (auto entity_handle : view) {
-                const auto& transform = view.get<tvk::TransformComponent>(entity_handle);
-                const auto& mesh_comp = view.get<tvk::MeshComponent>(entity_handle);
+            for (auto entity_handle : mesh_view) {
+                const auto& transform = mesh_view.get<tvk::TransformComponent>(entity_handle);
+                const auto& mesh_comp = mesh_view.get<tvk::MeshComponent>(entity_handle);
                 
                 if (!mesh_comp.visible || !mesh_comp.mesh) continue;
                 
                 tvk::Mat4 model = transform.GetMatrix();
                 model = glm::rotate(model, glm::radians(_rotation), tvk::Vec3(0.0f, 1.0f, 0.0f));
                 
-                tvk::PushConstants push;
-                push.model = model;
-                push.view_projection = view_projection;
-                _pipeline->SetPushConstants(cmd, push);
-                
+                _sceneLighting->SetShadowPushConstants(cmd, model);
                 mesh_comp.mesh->Draw(cmd);
             }
+            
+            _sceneLighting->EndShadowPass(cmd);
+        }
+        
+        BeginRenderPass(cmd);
+        
+        _pipeline->Bind(cmd);
+        _pipeline->BindDescriptorSet(cmd, _sceneLighting->GetDescriptorSet());
+        
+        tvk::Mat4 view_projection = camera->GetViewProjectionMatrix();
+        
+        for (auto entity_handle : mesh_view) {
+            const auto& transform = mesh_view.get<tvk::TransformComponent>(entity_handle);
+            const auto& mesh_comp = mesh_view.get<tvk::MeshComponent>(entity_handle);
+            
+            if (!mesh_comp.visible || !mesh_comp.mesh) continue;
+            
+            tvk::Mat4 model = transform.GetMatrix();
+            model = glm::rotate(model, glm::radians(_rotation), tvk::Vec3(0.0f, 1.0f, 0.0f));
+            
+            tvk::PushConstants push;
+            push.model = model;
+            push.view_projection = view_projection;
+            _pipeline->SetPushConstants(cmd, push);
+            
+            mesh_comp.mesh->Draw(cmd);
         }
         
         EndRenderPass(cmd);
@@ -131,6 +185,9 @@ protected:
         if (_pipeline) {
             _pipeline->Destroy();
         }
+        if (_sceneLighting) {
+            _sceneLighting->Destroy();
+        }
         _scene.reset();
     }
 
@@ -145,6 +202,7 @@ private:
     float _rotation = 0.0f;
     tvk::Ref<tvk::Scene> _scene;
     tvk::Scope<tvk::Pipeline> _pipeline;
+    tvk::Scope<tvk::SceneLighting> _sceneLighting;
     tvk::CameraController _cameraController;
     tvk::Entity _selectedEntity;
     bool _controlCamera = false;
@@ -385,6 +443,49 @@ protected:
                     }
                 }
                 
+                if (selected.HasComponent<tvk::DirectionalLightComponent>()) {
+                    if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto& light = selected.GetComponent<tvk::DirectionalLightComponent>();
+                        auto& transform = selected.GetComponent<tvk::TransformComponent>();
+                        ImGui::DragFloat3("Direction (Rotation)", &transform.rotation.x, 1.0f);
+                        ImGui::ColorEdit3("Color", &light.color.x);
+                        ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 10.0f);
+                        ImGui::Checkbox("Cast Shadows", &light.cast_shadows);
+                    }
+                }
+                
+                if (selected.HasComponent<tvk::PointLightComponent>()) {
+                    if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto& light = selected.GetComponent<tvk::PointLightComponent>();
+                        ImGui::ColorEdit3("Color", &light.color.x);
+                        ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 100.0f);
+                        ImGui::DragFloat("Radius", &light.radius, 0.1f, 0.0f, 100.0f);
+                        ImGui::DragFloat("Falloff", &light.falloff, 0.1f, 0.0f, 10.0f);
+                    }
+                }
+                
+                if (selected.HasComponent<tvk::SpotLightComponent>()) {
+                    if (ImGui::CollapsingHeader("Spot Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto& light = selected.GetComponent<tvk::SpotLightComponent>();
+                        auto& transform = selected.GetComponent<tvk::TransformComponent>();
+                        ImGui::DragFloat3("Direction (Rotation)", &transform.rotation.x, 1.0f);
+                        ImGui::ColorEdit3("Color", &light.color.x);
+                        ImGui::DragFloat("Intensity", &light.intensity, 0.1f, 0.0f, 100.0f);
+                        ImGui::DragFloat("Range", &light.range, 0.1f, 0.0f, 100.0f);
+                        ImGui::SliderFloat("Inner Cone", &light.inner_angle, 0.0f, light.outer_angle);
+                        ImGui::SliderFloat("Outer Cone", &light.outer_angle, light.inner_angle, 90.0f);
+                        ImGui::Checkbox("Cast Shadows", &light.cast_shadows);
+                    }
+                }
+                
+                if (selected.HasComponent<tvk::AmbientLightComponent>()) {
+                    if (ImGui::CollapsingHeader("Ambient Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto& light = selected.GetComponent<tvk::AmbientLightComponent>();
+                        ImGui::ColorEdit3("Color", &light.color.x);
+                        ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, 1.0f);
+                    }
+                }
+                
                 ImGui::Separator();
                 if (ImGui::Button("Delete Entity")) {
                     _gameViewport->GetScene()->DestroyEntity(selected);
@@ -454,9 +555,17 @@ protected:
             }
 
             if (ImGui::CollapsingHeader("Features Demonstrated")) {
+                ImGui::BulletText("Entity Component System (ECS) with EnTT");
+                ImGui::BulletText("Scene graph with hierarchy support");
+                ImGui::BulletText("Camera system with controller");
+                ImGui::BulletText("PBR material system");
+                ImGui::BulletText("Light system (directional, point, spot, ambient)");
                 ImGui::BulletText("Multiple geometry primitives (cube, sphere, torus, etc.)");
                 ImGui::BulletText("Graphics pipeline with vertex/fragment shaders");
                 ImGui::BulletText("Compute pipeline for GPU computation");
+                ImGui::BulletText("Model loading (OBJ format)");
+                ImGui::BulletText("Render queue with sorting and batching");
+                ImGui::BulletText("Skybox support");
                 ImGui::BulletText("Texture loading and display");
                 ImGui::BulletText("File dialogs");
                 ImGui::BulletText("Input handling (keyboard and mouse)");

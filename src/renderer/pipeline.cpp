@@ -16,7 +16,7 @@ Pipeline::~Pipeline() {
     Destroy();
 }
 
-bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource) {
+bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout) {
     _renderer = renderer;
     auto& ctx = renderer->GetContext();
     VkDevice device = ctx.GetDevice();
@@ -119,6 +119,10 @@ bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::st
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+    if (descriptorSetLayout != VK_NULL_HANDLE) {
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+    }
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &_layout) != VK_SUCCESS) {
         TVK_LOG_ERROR("Failed to create pipeline layout");
@@ -176,6 +180,10 @@ void Pipeline::Destroy() {
 
 void Pipeline::Bind(VkCommandBuffer cmd) {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+}
+
+void Pipeline::BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet descriptorSet) {
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _layout, 0, 1, &descriptorSet, 0, nullptr);
 }
 
 void Pipeline::SetPushConstants(VkCommandBuffer cmd, const PushConstants& constants) {

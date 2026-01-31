@@ -141,12 +141,17 @@ set(TINYVK_SOURCES
     src/renderer/pipeline.cpp
     src/renderer/shader_compiler.cpp
     src/renderer/material.cpp
+    src/renderer/light.cpp
+    src/renderer/render_queue.cpp
+    src/renderer/skybox.cpp
+    src/renderer/scene_lighting.cpp
     src/scene/camera.cpp
     src/scene/entity.cpp
     src/scene/scene.cpp
     src/ui/imgui_layer.cpp
     src/ui/render_widget.cpp
     src/assets/fonts.cpp
+    src/assets/model_loader.cpp
 )
 
 add_library(tinyvk STATIC ${TINYVK_SOURCES})
