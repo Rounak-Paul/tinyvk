@@ -124,12 +124,12 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
     initInfo.Queue = context.GetGraphicsQueue();
     initInfo.PipelineCache = VK_NULL_HANDLE;
     initInfo.DescriptorPool = m_DescriptorPool;
-    initInfo.Subpass = 0;
     initInfo.MinImageCount = 2;
     initInfo.ImageCount = renderer->GetSwapchainImageCount();
-    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     initInfo.Allocator = nullptr;
-    initInfo.RenderPass = renderer->GetRenderPass();
+    initInfo.PipelineInfoMain.RenderPass = renderer->GetRenderPass();
+    initInfo.PipelineInfoMain.Subpass = 0;
+    initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
     if (!ImGui_ImplVulkan_Init(&initInfo)) {
         TVK_LOG_ERROR("Failed to initialize ImGui Vulkan backend");

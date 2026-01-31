@@ -89,6 +89,7 @@ void App::Initialize(const AppConfig& config) {
 
     ImGuiConfig imguiConfig;
     imguiConfig.enableDocking = true;
+    imguiConfig.enableViewports = true;
 
     _imguiLayer = CreateScope<ImGuiLayer>();
     if (!_imguiLayer->Init(_window->GetNativeHandle(), _renderer.get(), imguiConfig)) {
