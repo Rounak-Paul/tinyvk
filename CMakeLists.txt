@@ -122,6 +122,9 @@ set(JSON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendors/json)
 
 # STB (Header-only)
 set(STB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendors/stb)
+
+# EnTT (Header-only ECS)
+set(ENTT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendors/entt)
 # ----------------------------------------------------------
 
 # TinyVK Library -------------------------------------------
@@ -137,6 +140,10 @@ set(TINYVK_SOURCES
     src/renderer/mesh.cpp
     src/renderer/pipeline.cpp
     src/renderer/shader_compiler.cpp
+    src/renderer/material.cpp
+    src/scene/camera.cpp
+    src/scene/entity.cpp
+    src/scene/scene.cpp
     src/ui/imgui_layer.cpp
     src/ui/render_widget.cpp
     src/assets/fonts.cpp
@@ -149,6 +156,7 @@ target_include_directories(tinyvk PUBLIC
     ${VMA_DIR}/include
     ${JSON_DIR}/include
     ${STB_DIR}
+    ${ENTT_DIR}/single_include
 )
 target_link_directories(tinyvk PUBLIC ${VULKAN_PATH}/lib)
 target_link_libraries(tinyvk PUBLIC 

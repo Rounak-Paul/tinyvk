@@ -5,6 +5,9 @@
  * This sandbox demonstrates:
  * - All three AppModes: GUI, Game, and Hybrid
  * - RenderWidget for embedded viewports
+ * - Scene and ECS (Entity Component System) with EnTT
+ * - Camera and CameraController
+ * - Material system
  * - Mesh/geometry rendering with various primitives
  * - Graphics pipeline usage
  * - Compute pipeline usage
@@ -30,23 +33,38 @@ protected:
     void OnRenderInit() override {
         _rotation = 0.0f;
         
-        // Create various geometries
-        _cubeMesh = tvk::Geometry::CreateCube(GetRenderer(), 1.0f);
-        _sphereMesh = tvk::Geometry::CreateSphere(GetRenderer(), 0.5f, 32, 16);
-        _planeMesh = tvk::Geometry::CreatePlane(GetRenderer(), 2.0f, 2.0f, 10, 10);
-        _cylinderMesh = tvk::Geometry::CreateCylinder(GetRenderer(), 0.3f, 1.5f, 24);
-        _coneMesh = tvk::Geometry::CreateCone(GetRenderer(), 0.5f, 1.0f, 24);
-        _torusMesh = tvk::Geometry::CreateTorus(GetRenderer(), 0.5f, 0.2f, 32, 16);
+        _scene = tvk::CreateRef<tvk::Scene>("Demo Scene");
         
-        TVK_LOG_INFO("GameViewport initialized:");
-        if (_cubeMesh) TVK_LOG_INFO("  Cube: {} vertices, {} indices", _cubeMesh->GetVertexCount(), _cubeMesh->GetIndexCount());
-        if (_sphereMesh) TVK_LOG_INFO("  Sphere: {} vertices, {} indices", _sphereMesh->GetVertexCount(), _sphereMesh->GetIndexCount());
-        if (_planeMesh) TVK_LOG_INFO("  Plane: {} vertices, {} indices", _planeMesh->GetVertexCount(), _planeMesh->GetIndexCount());
-        if (_cylinderMesh) TVK_LOG_INFO("  Cylinder: {} vertices, {} indices", _cylinderMesh->GetVertexCount(), _cylinderMesh->GetIndexCount());
-        if (_coneMesh) TVK_LOG_INFO("  Cone: {} vertices, {} indices", _coneMesh->GetVertexCount(), _coneMesh->GetIndexCount());
-        if (_torusMesh) TVK_LOG_INFO("  Torus: {} vertices, {} indices", _torusMesh->GetVertexCount(), _torusMesh->GetIndexCount());
+        auto camera_entity = _scene->CreateEntity("Main Camera");
+        auto& camera_comp = camera_entity.AddComponent<tvk::CameraComponent>();
+        camera_comp.primary = true;
+        camera_comp.camera.SetPerspective(45.0f, 16.0f/9.0f, 0.1f, 100.0f);
+        camera_comp.camera.SetPosition(tvk::Vec3(0.0f, 2.0f, 5.0f));
+        camera_comp.camera.LookAt(tvk::Vec3(0.0f, 0.0f, 0.0f));
+        _scene->SetPrimaryCamera(camera_entity);
+        _cameraController.SetCamera(&camera_comp.camera);
+        _cameraController.SetYaw(-90.0f);
+        _cameraController.SetPitch(-20.0f);
         
-        SetClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        auto cube = _scene->CreateEntity("Cube");
+        cube.GetComponent<tvk::TransformComponent>().position = tvk::Vec3(-2.0f, 0.0f, 0.0f);
+        cube.AddComponent<tvk::MeshComponent>(tvk::Geometry::CreateCube(GetRenderer(), 1.0f));
+        
+        auto sphere = _scene->CreateEntity("Sphere");
+        sphere.GetComponent<tvk::TransformComponent>().position = tvk::Vec3(0.0f, 0.0f, 0.0f);
+        sphere.AddComponent<tvk::MeshComponent>(tvk::Geometry::CreateSphere(GetRenderer(), 0.6f, 32, 16));
+        
+        auto torus = _scene->CreateEntity("Torus");
+        torus.GetComponent<tvk::TransformComponent>().position = tvk::Vec3(2.0f, 0.0f, 0.0f);
+        torus.AddComponent<tvk::MeshComponent>(tvk::Geometry::CreateTorus(GetRenderer(), 0.5f, 0.2f, 32, 16));
+        
+        auto ground = _scene->CreateEntity("Ground");
+        ground.GetComponent<tvk::TransformComponent>().position = tvk::Vec3(0.0f, -1.0f, 0.0f);
+        ground.AddComponent<tvk::MeshComponent>(tvk::Geometry::CreatePlane(GetRenderer(), 10.0f, 10.0f, 10, 10));
+        
+        TVK_LOG_INFO("Scene created with {} entities", _scene->GetEntityCount());
+        
+        SetClearColor(0.1f, 0.1f, 0.15f, 1.0f);
         
         _pipeline = tvk::CreateScope<tvk::Pipeline>();
         if (!_pipeline->Create(GetRenderer(), GetRenderPass(), tvk::shaders::basic_vert, tvk::shaders::basic_frag)) {
@@ -57,71 +75,79 @@ protected:
     void OnRenderFrame(VkCommandBuffer cmd) override {
         BeginRenderPass(cmd);
         
-        if (_pipeline && _cubeMesh && GetWidth() > 0 && GetHeight() > 0) {
+        if (_pipeline && _scene && GetWidth() > 0 && GetHeight() > 0) {
             _pipeline->Bind(cmd);
             
-            glm::mat4 view = glm::lookAt(
-                glm::vec3(0.0f, 0.0f, 3.0f),
-                glm::vec3(0.0f, 0.0f, 0.0f),
-                glm::vec3(0.0f, 1.0f, 0.0f)
-            );
+            tvk::Camera* camera = _scene->GetActiveCameraPtr();
+            if (!camera) {
+                EndRenderPass(cmd);
+                return;
+            }
             
-            float aspect = (float)GetWidth() / (float)GetHeight();
-            glm::mat4 proj = glm::perspective(
-                glm::radians(45.0f),
-                aspect,
-                0.1f,
-                100.0f
-            );
-            proj[1][1] *= -1;
+            tvk::Mat4 view_projection = camera->GetViewProjectionMatrix();
             
-            glm::mat4 model = glm::rotate(
-                glm::mat4(1.0f),
-                glm::radians(_rotation),
-                glm::vec3(0.0f, 1.0f, 0.0f)
-            );
-            
-            tvk::PushConstants push;
-            push.model = model;
-            push.view_projection = proj * view;
-            
-            _pipeline->SetPushConstants(cmd, push);
-            _cubeMesh->Draw(cmd);
+            auto view = _scene->GetAllEntitiesWith<tvk::TransformComponent, tvk::MeshComponent>();
+            for (auto entity_handle : view) {
+                const auto& transform = view.get<tvk::TransformComponent>(entity_handle);
+                const auto& mesh_comp = view.get<tvk::MeshComponent>(entity_handle);
+                
+                if (!mesh_comp.visible || !mesh_comp.mesh) continue;
+                
+                tvk::Mat4 model = transform.GetMatrix();
+                model = glm::rotate(model, glm::radians(_rotation), tvk::Vec3(0.0f, 1.0f, 0.0f));
+                
+                tvk::PushConstants push;
+                push.model = model;
+                push.view_projection = view_projection;
+                _pipeline->SetPushConstants(cmd, push);
+                
+                mesh_comp.mesh->Draw(cmd);
+            }
         }
         
         EndRenderPass(cmd);
     }
 
     void OnRenderUpdate(float deltaTime) override {
-        _rotation += deltaTime * 45.0f;
+        _rotation += deltaTime * 20.0f;
         if (_rotation > 360.0f) _rotation -= 360.0f;
+        
+        if (_scene) {
+            _scene->OnViewportResize(GetWidth(), GetHeight());
+            
+            if (_controlCamera && ImGui::IsWindowFocused()) {
+                _cameraController.Update(deltaTime);
+            }
+        }
     }
 
     void OnRenderResize(tvk::u32 width, tvk::u32 height) override {
-        TVK_LOG_INFO("GameViewport resized to {}x{}", width, height);
+        if (_scene) {
+            _scene->OnViewportResize(width, height);
+        }
     }
 
     void OnRenderCleanup() override {
         if (_pipeline) {
             _pipeline->Destroy();
         }
-        _cubeMesh.reset();
-        _sphereMesh.reset();
-        _planeMesh.reset();
-        _cylinderMesh.reset();
-        _coneMesh.reset();
-        _torusMesh.reset();
+        _scene.reset();
     }
+
+public:
+    tvk::Ref<tvk::Scene> GetScene() const { return _scene; }
+    void SetCameraControl(bool enabled) { _controlCamera = enabled; }
+    bool IsCameraControlEnabled() const { return _controlCamera; }
+    tvk::Entity GetSelectedEntity() const { return _selectedEntity; }
+    void SetSelectedEntity(tvk::Entity entity) { _selectedEntity = entity; }
 
 private:
     float _rotation = 0.0f;
-    tvk::Scope<tvk::Mesh> _cubeMesh;
-    tvk::Scope<tvk::Mesh> _sphereMesh;
-    tvk::Scope<tvk::Mesh> _planeMesh;
-    tvk::Scope<tvk::Mesh> _cylinderMesh;
-    tvk::Scope<tvk::Mesh> _coneMesh;
-    tvk::Scope<tvk::Mesh> _torusMesh;
+    tvk::Ref<tvk::Scene> _scene;
     tvk::Scope<tvk::Pipeline> _pipeline;
+    tvk::CameraController _cameraController;
+    tvk::Entity _selectedEntity;
+    bool _controlCamera = false;
 };
 
 class SandboxApp : public tvk::App {
@@ -265,28 +291,41 @@ protected:
         if (_showHierarchy) {
             ImGui::Begin("Scene Hierarchy", &_showHierarchy);
             
-            ImGui::TextWrapped("Example scene hierarchy for level editor or 3D tool.");
-            ImGui::Separator();
-            
-            if (ImGui::TreeNode("Scene Root")) {
-                if (ImGui::TreeNode("Camera")) {
-                    ImGui::Text("Main Camera");
-                    ImGui::TreePop();
+            if (_gameViewport && _gameViewport->GetScene()) {
+                auto scene = _gameViewport->GetScene();
+                ImGui::Text("Scene: %s", scene->GetName().c_str());
+                ImGui::Text("Entities: %u", scene->GetEntityCount());
+                ImGui::Separator();
+                
+                if (ImGui::Button("+ Add Entity")) {
+                    auto entity = scene->CreateEntity("New Entity");
+                    _gameViewport->SetSelectedEntity(entity);
                 }
-                if (ImGui::TreeNode("Objects")) {
-                    ImGui::Selectable("Cube");
-                    ImGui::Selectable("Sphere");
-                    ImGui::Selectable("Plane");
-                    ImGui::Selectable("Cylinder");
-                    ImGui::Selectable("Cone");
-                    ImGui::Selectable("Torus");
-                    ImGui::TreePop();
+                ImGui::SameLine();
+                if (ImGui::Button("+ Add Cube")) {
+                    auto entity = scene->CreateEntity("Cube");
+                    entity.AddComponent<tvk::MeshComponent>(tvk::Geometry::CreateCube(GetRenderer(), 1.0f));
+                    _gameViewport->SetSelectedEntity(entity);
                 }
-                if (ImGui::TreeNode("Lights")) {
-                    ImGui::Text("Directional Light");
-                    ImGui::TreePop();
-                }
-                ImGui::TreePop();
+                
+                ImGui::Separator();
+                
+                scene->ForEachEntity([this](tvk::Entity entity) {
+                    auto& tag = entity.GetComponent<tvk::TagComponent>();
+                    
+                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+                    if (_gameViewport->GetSelectedEntity() == entity) {
+                        flags |= ImGuiTreeNodeFlags_Selected;
+                    }
+                    
+                    ImGui::TreeNodeEx((void*)(intptr_t)(tvk::u32)entity, flags, "%s", tag.tag.c_str());
+                    
+                    if (ImGui::IsItemClicked()) {
+                        _gameViewport->SetSelectedEntity(entity);
+                    }
+                });
+            } else {
+                ImGui::TextDisabled("No scene loaded");
             }
             
             ImGui::End();
@@ -295,22 +334,65 @@ protected:
         if (_showProperties) {
             ImGui::Begin("Properties", &_showProperties);
             
-            ImGui::Text("Selected: Cube");
-            ImGui::Separator();
+            tvk::Entity selected = _gameViewport ? _gameViewport->GetSelectedEntity() : tvk::Entity();
             
-            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-                static float pos[3] = {0, 0, 0};
-                static float rot[3] = {0, 0, 0};
-                static float scale[3] = {1, 1, 1};
+            if (selected.IsValid()) {
+                auto& tag = selected.GetComponent<tvk::TagComponent>();
+                char buffer[256];
+                strncpy(buffer, tag.tag.c_str(), sizeof(buffer));
+                buffer[sizeof(buffer) - 1] = '\0';
+                if (ImGui::InputText("Name", buffer, sizeof(buffer))) {
+                    tag.tag = buffer;
+                }
                 
-                ImGui::DragFloat3("Position", pos, 0.1f);
-                ImGui::DragFloat3("Rotation", rot, 1.0f);
-                ImGui::DragFloat3("Scale", scale, 0.1f);
-            }
-            
-            if (ImGui::CollapsingHeader("Material")) {
-                ImGui::ColorEdit3("Diffuse", &_color.x);
-                ImGui::SliderFloat("Roughness", &_sliderValue, 0.0f, 1.0f);
+                ImGui::Separator();
+                
+                if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    auto& transform = selected.GetComponent<tvk::TransformComponent>();
+                    ImGui::DragFloat3("Position", &transform.position.x, 0.1f);
+                    ImGui::DragFloat3("Rotation", &transform.rotation.x, 1.0f);
+                    ImGui::DragFloat3("Scale", &transform.scale.x, 0.1f);
+                }
+                
+                if (selected.HasComponent<tvk::MeshComponent>()) {
+                    if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto& mesh = selected.GetComponent<tvk::MeshComponent>();
+                        ImGui::Checkbox("Visible", &mesh.visible);
+                        ImGui::Checkbox("Cast Shadows", &mesh.cast_shadows);
+                        if (mesh.mesh) {
+                            ImGui::Text("Vertices: %u", mesh.mesh->GetVertexCount());
+                            ImGui::Text("Indices: %u", mesh.mesh->GetIndexCount());
+                        }
+                    }
+                }
+                
+                if (selected.HasComponent<tvk::CameraComponent>()) {
+                    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto& cam = selected.GetComponent<tvk::CameraComponent>();
+                        ImGui::Checkbox("Primary", &cam.primary);
+                        float fov = cam.camera.GetFov();
+                        if (ImGui::SliderFloat("FOV", &fov, 10.0f, 120.0f)) {
+                            cam.camera.SetFov(fov);
+                        }
+                        float near_plane = cam.camera.GetNearPlane();
+                        float far_plane = cam.camera.GetFarPlane();
+                        if (ImGui::DragFloat("Near", &near_plane, 0.01f, 0.001f, 10.0f)) {
+                            cam.camera.SetNearPlane(near_plane);
+                        }
+                        if (ImGui::DragFloat("Far", &far_plane, 1.0f, 10.0f, 10000.0f)) {
+                            cam.camera.SetFarPlane(far_plane);
+                        }
+                    }
+                }
+                
+                ImGui::Separator();
+                if (ImGui::Button("Delete Entity")) {
+                    _gameViewport->GetScene()->DestroyEntity(selected);
+                    _gameViewport->SetSelectedEntity(tvk::Entity());
+                }
+            } else {
+                ImGui::TextDisabled("No entity selected");
+                ImGui::TextWrapped("Select an entity from the Scene Hierarchy to edit its properties.");
             }
             
             ImGui::End();

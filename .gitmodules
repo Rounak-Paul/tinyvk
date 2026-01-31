@@ -17,3 +17,6 @@
 [submodule "vendors/stb"]
 	path = vendors/stb
 	url = https://github.com/Rounak-Paul/stb.git
+[submodule "vendors/entt"]
+	path = vendors/entt
+	url = https://github.com/Rounak-Paul/entt.git

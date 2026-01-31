@@ -41,6 +41,13 @@
 #include "renderer/vertex.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
+#include "renderer/material.h"
+
+// Scene management and ECS
+#include "scene/camera.h"
+#include "scene/components.h"
+#include "scene/entity.h"
+#include "scene/scene.h"
 
 // Assets - Embedded fonts and icons
 #include "assets/fonts.h"
