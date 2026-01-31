@@ -7,6 +7,7 @@
 
 #include "../core/types.h"
 #include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
 #include <string>
 
 namespace tvk {
@@ -145,7 +146,7 @@ private:
     bool Init(Renderer* renderer, const void* data, const TextureSpec& spec);
     void Cleanup();
     void CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling,
-                     VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
+                     VkImageUsageFlags usage);
     void CreateImageView(VkFormat format, VkImageAspectFlags aspectFlags);
     void CreateSampler(const TextureSpec& spec);
     void TransitionImageLayout(VkImage image, VkFormat format,
@@ -161,7 +162,7 @@ private:
     VulkanContext* m_Context = nullptr;
 
     VkImage m_Image = VK_NULL_HANDLE;
-    VkDeviceMemory m_ImageMemory = VK_NULL_HANDLE;
+    VmaAllocation m_Allocation = VK_NULL_HANDLE;
     VkImageView m_ImageView = VK_NULL_HANDLE;
     VkSampler m_Sampler = VK_NULL_HANDLE;
     VkFormat m_Format = VK_FORMAT_R8G8B8A8_UNORM;

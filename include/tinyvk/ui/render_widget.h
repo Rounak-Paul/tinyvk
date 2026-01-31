@@ -203,6 +203,7 @@ private:
     // Command buffer for rendering
     VkCommandBuffer _commandBuffer = VK_NULL_HANDLE;
     VkCommandPool _commandPool = VK_NULL_HANDLE;
+    VkFence _renderFence = VK_NULL_HANDLE;
     
     // Clear color
     std::array<float, 4> _clearColor = {0.0f, 0.0f, 0.0f, 1.0f};

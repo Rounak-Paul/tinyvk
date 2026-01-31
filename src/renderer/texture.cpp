@@ -26,7 +26,7 @@ Texture::Texture(Texture&& other) noexcept
     : m_Renderer(other.m_Renderer)
     , m_Context(other.m_Context)
     , m_Image(other.m_Image)
-    , m_ImageMemory(other.m_ImageMemory)
+    , m_Allocation(other.m_Allocation)
     , m_ImageView(other.m_ImageView)
     , m_Sampler(other.m_Sampler)
     , m_Format(other.m_Format)
@@ -36,7 +36,7 @@ Texture::Texture(Texture&& other) noexcept
     , m_MipLevels(other.m_MipLevels)
     , m_FilePath(std::move(other.m_FilePath)) {
     other.m_Image = VK_NULL_HANDLE;
-    other.m_ImageMemory = VK_NULL_HANDLE;
+    other.m_Allocation = VK_NULL_HANDLE;
     other.m_ImageView = VK_NULL_HANDLE;
     other.m_Sampler = VK_NULL_HANDLE;
     other.m_ImGuiDescriptorSet = VK_NULL_HANDLE;
@@ -48,7 +48,7 @@ Texture& Texture::operator=(Texture&& other) noexcept {
         m_Renderer = other.m_Renderer;
         m_Context = other.m_Context;
         m_Image = other.m_Image;
-        m_ImageMemory = other.m_ImageMemory;
+        m_Allocation = other.m_Allocation;
         m_ImageView = other.m_ImageView;
         m_Sampler = other.m_Sampler;
         m_Format = other.m_Format;
@@ -59,7 +59,7 @@ Texture& Texture::operator=(Texture&& other) noexcept {
         m_FilePath = std::move(other.m_FilePath);
 
         other.m_Image = VK_NULL_HANDLE;
-        other.m_ImageMemory = VK_NULL_HANDLE;
+        other.m_Allocation = VK_NULL_HANDLE;
         other.m_ImageView = VK_NULL_HANDLE;
         other.m_Sampler = VK_NULL_HANDLE;
         other.m_ImGuiDescriptorSet = VK_NULL_HANDLE;
@@ -117,36 +117,24 @@ void Texture::SetData(const void* data, u32 width, u32 height) {
     
     VkDeviceSize imageSize = width * height * 4;
 
-    // Create staging buffer
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = imageSize;
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vkCreateBuffer(m_Context->GetDevice(), &bufferInfo, nullptr, &stagingBuffer);
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_Context->GetDevice(), stagingBuffer, &memRequirements);
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+    VmaAllocationInfo stagingAllocInfo;
 
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = m_Context->FindMemoryType(
-        memRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
+    vmaCreateBuffer(m_Context->GetAllocator(), &bufferInfo, &allocInfo, 
+                   &stagingBuffer, &stagingAllocation, &stagingAllocInfo);
 
-    vkAllocateMemory(m_Context->GetDevice(), &allocInfo, nullptr, &stagingBufferMemory);
-    vkBindBufferMemory(m_Context->GetDevice(), stagingBuffer, stagingBufferMemory, 0);
-
-    void* mappedData;
-    vkMapMemory(m_Context->GetDevice(), stagingBufferMemory, 0, imageSize, 0, &mappedData);
-    memcpy(mappedData, data, static_cast<size_t>(imageSize));
-    vkUnmapMemory(m_Context->GetDevice(), stagingBufferMemory);
+    memcpy(stagingAllocInfo.pMappedData, data, static_cast<size_t>(imageSize));
 
     TransitionImageLayout(m_Image, m_Format, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_MipLevels);
@@ -154,8 +142,7 @@ void Texture::SetData(const void* data, u32 width, u32 height) {
     TransitionImageLayout(m_Image, m_Format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_MipLevels);
 
-    vkDestroyBuffer(m_Context->GetDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(m_Context->GetDevice(), stagingBufferMemory, nullptr);
+    vmaDestroyBuffer(m_Context->GetAllocator(), stagingBuffer, stagingAllocation);
 }
 
 void Texture::BindToImGui() {
@@ -181,55 +168,38 @@ bool Texture::Init(Renderer* renderer, const void* data, const TextureSpec& spec
 
     VkDeviceSize imageSize = m_Width * m_Height * 4;
 
-    // Create staging buffer
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = imageSize;
     bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (vkCreateBuffer(m_Context->GetDevice(), &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
+    VmaAllocationCreateInfo stagingAllocCreateInfo{};
+    stagingAllocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    stagingAllocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+    VkBuffer stagingBuffer;
+    VmaAllocation stagingAllocation;
+    VmaAllocationInfo stagingAllocInfo;
+
+    if (vmaCreateBuffer(m_Context->GetAllocator(), &bufferInfo, &stagingAllocCreateInfo, 
+                        &stagingBuffer, &stagingAllocation, &stagingAllocInfo) != VK_SUCCESS) {
         TVK_LOG_ERROR("Failed to create staging buffer for texture");
         return false;
     }
 
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_Context->GetDevice(), stagingBuffer, &memRequirements);
+    memcpy(stagingAllocInfo.pMappedData, data, static_cast<size_t>(imageSize));
 
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = m_Context->FindMemoryType(
-        memRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-
-    vkAllocateMemory(m_Context->GetDevice(), &allocInfo, nullptr, &stagingBufferMemory);
-    vkBindBufferMemory(m_Context->GetDevice(), stagingBuffer, stagingBufferMemory, 0);
-
-    void* mappedData;
-    vkMapMemory(m_Context->GetDevice(), stagingBufferMemory, 0, imageSize, 0, &mappedData);
-    memcpy(mappedData, data, static_cast<size_t>(imageSize));
-    vkUnmapMemory(m_Context->GetDevice(), stagingBufferMemory);
-
-    // Create image
     VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     if (spec.storageUsage) {
         usageFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
-    CreateImage(m_Width, m_Height, m_Format, VK_IMAGE_TILING_OPTIMAL,
-               usageFlags,
-               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    CreateImage(m_Width, m_Height, m_Format, VK_IMAGE_TILING_OPTIMAL, usageFlags);
 
-    // Transition and copy
     TransitionImageLayout(m_Image, m_Format, VK_IMAGE_LAYOUT_UNDEFINED, 
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_MipLevels);
     CopyBufferToImage(stagingBuffer, m_Image, m_Width, m_Height);
 
-    // Generate mipmaps or transition to shader read
     if (spec.generateMipmaps && m_MipLevels > 1) {
         GenerateMipmaps(m_Image, m_Format, m_Width, m_Height, m_MipLevels);
     } else {
@@ -237,18 +207,14 @@ bool Texture::Init(Renderer* renderer, const void* data, const TextureSpec& spec
                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_MipLevels);
     }
 
-    vkDestroyBuffer(m_Context->GetDevice(), stagingBuffer, nullptr);
-    vkFreeMemory(m_Context->GetDevice(), stagingBufferMemory, nullptr);
+    vmaDestroyBuffer(m_Context->GetAllocator(), stagingBuffer, stagingAllocation);
 
-    // Create image view
     CreateImageView(m_Format, VK_IMAGE_ASPECT_COLOR_BIT);
 
-    // Create sampler
     if (spec.useSampler) {
         CreateSampler(spec);
     }
 
-    // Bind to ImGui by default
     BindToImGui();
 
     return true;
@@ -274,19 +240,15 @@ void Texture::Cleanup() {
         m_ImageView = VK_NULL_HANDLE;
     }
 
-    if (m_Image != VK_NULL_HANDLE) {
-        vkDestroyImage(m_Context->GetDevice(), m_Image, nullptr);
+    if (m_Image != VK_NULL_HANDLE && m_Allocation != VK_NULL_HANDLE) {
+        vmaDestroyImage(m_Context->GetAllocator(), m_Image, m_Allocation);
         m_Image = VK_NULL_HANDLE;
-    }
-
-    if (m_ImageMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_Context->GetDevice(), m_ImageMemory, nullptr);
-        m_ImageMemory = VK_NULL_HANDLE;
+        m_Allocation = VK_NULL_HANDLE;
     }
 }
 
 void Texture::CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling tiling,
-                          VkImageUsageFlags usage, VkMemoryPropertyFlags properties) {
+                          VkImageUsageFlags usage) {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -302,18 +264,10 @@ void Texture::CreateImage(u32 width, u32 height, VkFormat format, VkImageTiling 
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vkCreateImage(m_Context->GetDevice(), &imageInfo, nullptr, &m_Image);
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(m_Context->GetDevice(), m_Image, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = m_Context->FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-    vkAllocateMemory(m_Context->GetDevice(), &allocInfo, nullptr, &m_ImageMemory);
-    vkBindImageMemory(m_Context->GetDevice(), m_Image, m_ImageMemory, 0);
+    vmaCreateImage(m_Context->GetAllocator(), &imageInfo, &allocInfo, &m_Image, &m_Allocation, nullptr);
 }
 
 void Texture::CreateImageView(VkFormat format, VkImageAspectFlags aspectFlags) {

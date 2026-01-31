@@ -49,6 +49,15 @@ void RenderWidget::Initialize(Renderer* renderer) {
         TVK_LOG_ERROR("Failed to create RenderWidget command buffer");
         return;
     }
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    
+    if (vkCreateFence(device, &fenceInfo, nullptr, &_renderFence) != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to create RenderWidget fence");
+        return;
+    }
     
     CreateRenderTarget();
     
@@ -69,6 +78,9 @@ void RenderWidget::Render(float deltaTime) {
     
     auto& ctx = _renderer->GetContext();
     VkDevice device = ctx.GetDevice();
+
+    vkWaitForFences(device, 1, &_renderFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &_renderFence);
     
     vkResetCommandBuffer(_commandBuffer, 0);
     
@@ -85,8 +97,7 @@ void RenderWidget::Render(float deltaTime) {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &_commandBuffer;
         
-        vkQueueSubmit(ctx.GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(ctx.GetGraphicsQueue());
+        vkQueueSubmit(ctx.GetGraphicsQueue(), 1, &submitInfo, _renderFence);
     }
 }
 
@@ -114,12 +125,21 @@ void RenderWidget::RenderImage() {
 void RenderWidget::Cleanup() {
     if (!_initialized) return;
     
+    auto& ctx = _renderer->GetContext();
+    VkDevice device = ctx.GetDevice();
+
+    if (_renderFence != VK_NULL_HANDLE) {
+        vkWaitForFences(device, 1, &_renderFence, VK_TRUE, UINT64_MAX);
+    }
+    
     OnRenderCleanup();
     
     CleanupRenderTarget();
     
-    auto& ctx = _renderer->GetContext();
-    VkDevice device = ctx.GetDevice();
+    if (_renderFence != VK_NULL_HANDLE) {
+        vkDestroyFence(device, _renderFence, nullptr);
+        _renderFence = VK_NULL_HANDLE;
+    }
     
     if (_commandPool != VK_NULL_HANDLE) {
         vkDestroyCommandPool(device, _commandPool, nullptr);

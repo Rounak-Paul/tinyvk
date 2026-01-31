@@ -3,6 +3,7 @@
  * @brief Vulkan context implementation
  */
 
+#define VMA_IMPLEMENTATION
 #include "tinyvk/renderer/context.h"
 #include "tinyvk/core/log.h"
 
@@ -116,6 +117,11 @@ bool VulkanContext::Init(GLFWwindow* window, const ContextConfig& config) {
         return false;
     }
 
+    if (!CreateVmaAllocator()) {
+        TVK_LOG_ERROR("Failed to create VMA allocator");
+        return false;
+    }
+
     TVK_LOG_INFO("Vulkan context initialized successfully");
     TVK_LOG_INFO("GPU: {}", m_DeviceProperties.deviceName);
     return true;
@@ -124,6 +130,11 @@ bool VulkanContext::Init(GLFWwindow* window, const ContextConfig& config) {
 void VulkanContext::Cleanup() {
     if (m_Device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(m_Device);
+
+        if (m_Allocator != VK_NULL_HANDLE) {
+            vmaDestroyAllocator(m_Allocator);
+            m_Allocator = VK_NULL_HANDLE;
+        }
 
         if (m_DescriptorPool != VK_NULL_HANDLE) {
             vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
@@ -384,6 +395,22 @@ bool VulkanContext::CreateDescriptorPool() {
     poolInfo.pPoolSizes = poolSizes.data();
 
     return vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &m_DescriptorPool) == VK_SUCCESS;
+}
+
+bool VulkanContext::CreateVmaAllocator() {
+    VmaAllocatorCreateInfo allocatorInfo{};
+    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_2;
+    allocatorInfo.physicalDevice = m_PhysicalDevice;
+    allocatorInfo.device = m_Device;
+    allocatorInfo.instance = m_Instance;
+
+    if (vmaCreateAllocator(&allocatorInfo, &m_Allocator) != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to create VMA allocator");
+        return false;
+    }
+
+    TVK_LOG_INFO("VMA allocator created successfully");
+    return true;
 }
 
 QueueFamilyIndices VulkanContext::FindQueueFamilies(VkPhysicalDevice device) const {

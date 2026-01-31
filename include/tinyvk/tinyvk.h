@@ -29,6 +29,7 @@
 #include "core/application.h"
 #include "core/input.h"
 #include "core/log.h"
+#include "core/result.h"
 #include "core/types.h"
 #include "core/timer.h"
 #include "core/file_dialog.h"

@@ -7,6 +7,7 @@
 
 #include "../core/types.h"
 #include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
 #include <vector>
 
 namespace tvk {
@@ -121,11 +122,11 @@ private:
     void Cleanup();
     
     static VkBufferUsageFlags ToVkUsage(BufferUsage usage);
-    static VkMemoryPropertyFlags GetMemoryProperties(BufferUsage usage);
+    static VmaMemoryUsage GetVmaMemoryUsage(BufferUsage usage);
 
     VulkanContext* m_Context = nullptr;
     VkBuffer m_Buffer = VK_NULL_HANDLE;
-    VkDeviceMemory m_Memory = VK_NULL_HANDLE;
+    VmaAllocation m_Allocation = VK_NULL_HANDLE;
     VkDeviceSize m_Size = 0;
     BufferUsage m_Usage = BufferUsage::Vertex;
     void* m_Mapped = nullptr;

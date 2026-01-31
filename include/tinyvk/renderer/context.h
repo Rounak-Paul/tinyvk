@@ -7,6 +7,7 @@
 
 #include "../core/types.h"
 #include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
 #include <vector>
 #include <optional>
 
@@ -83,6 +84,7 @@ public:
     VkQueue GetPresentQueue() const { return m_PresentQueue; }
     VkCommandPool GetCommandPool() const { return m_CommandPool; }
     VkDescriptorPool GetDescriptorPool() const { return m_DescriptorPool; }
+    VmaAllocator GetAllocator() const { return m_Allocator; }
     const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
     VkPhysicalDeviceProperties GetDeviceProperties() const { return m_DeviceProperties; }
     VkPhysicalDeviceMemoryProperties GetMemoryProperties() const { return m_MemoryProperties; }
@@ -115,6 +117,7 @@ private:
     bool CreateLogicalDevice(const ContextConfig& config);
     bool CreateCommandPool();
     bool CreateDescriptorPool();
+    bool CreateVmaAllocator();
 
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
     bool IsDeviceSuitable(VkPhysicalDevice device, const ContextConfig& config) const;
@@ -131,6 +134,7 @@ private:
     VkQueue m_PresentQueue = VK_NULL_HANDLE;
     VkCommandPool m_CommandPool = VK_NULL_HANDLE;
     VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
+    VmaAllocator m_Allocator = VK_NULL_HANDLE;
 
     QueueFamilyIndices m_QueueFamilyIndices;
     VkPhysicalDeviceProperties m_DeviceProperties{};

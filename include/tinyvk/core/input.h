@@ -128,6 +128,16 @@ public:
     static bool IsMouseButtonPressed(MouseButton button);
 
     /**
+     * @brief Check if a mouse button was just pressed this frame
+     */
+    static bool IsMouseButtonDown(MouseButton button);
+
+    /**
+     * @brief Check if a mouse button was just released this frame
+     */
+    static bool IsMouseButtonUp(MouseButton button);
+
+    /**
      * @brief Get current mouse position
      */
     static Vec2 GetMousePosition();
@@ -153,13 +163,21 @@ public:
     static void Update();
 
 private:
+    static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+
+    static constexpr int KEY_COUNT = GLFW_KEY_LAST + 1;
+    static constexpr int MOUSE_BUTTON_COUNT = GLFW_MOUSE_BUTTON_LAST + 1;
+
     static inline GLFWwindow* s_Window = nullptr;
     static inline Vec2 s_LastMousePos = {0.0f, 0.0f};
     static inline Vec2 s_MouseDelta = {0.0f, 0.0f};
     static inline Vec2 s_ScrollDelta = {0.0f, 0.0f};
     static inline bool s_FirstMouse = true;
 
-    static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+    static inline bool s_CurrentKeyState[KEY_COUNT] = {};
+    static inline bool s_PreviousKeyState[KEY_COUNT] = {};
+    static inline bool s_CurrentMouseState[MOUSE_BUTTON_COUNT] = {};
+    static inline bool s_PreviousMouseState[MOUSE_BUTTON_COUNT] = {};
 };
 
 } // namespace tvk

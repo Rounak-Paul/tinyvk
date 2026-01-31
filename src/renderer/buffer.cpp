@@ -19,12 +19,12 @@ Buffer::~Buffer() {
 Buffer::Buffer(Buffer&& other) noexcept
     : m_Context(other.m_Context)
     , m_Buffer(other.m_Buffer)
-    , m_Memory(other.m_Memory)
+    , m_Allocation(other.m_Allocation)
     , m_Size(other.m_Size)
     , m_Usage(other.m_Usage)
     , m_Mapped(other.m_Mapped) {
     other.m_Buffer = VK_NULL_HANDLE;
-    other.m_Memory = VK_NULL_HANDLE;
+    other.m_Allocation = VK_NULL_HANDLE;
     other.m_Mapped = nullptr;
 }
 
@@ -33,13 +33,13 @@ Buffer& Buffer::operator=(Buffer&& other) noexcept {
         Cleanup();
         m_Context = other.m_Context;
         m_Buffer = other.m_Buffer;
-        m_Memory = other.m_Memory;
+        m_Allocation = other.m_Allocation;
         m_Size = other.m_Size;
         m_Usage = other.m_Usage;
         m_Mapped = other.m_Mapped;
 
         other.m_Buffer = VK_NULL_HANDLE;
-        other.m_Memory = VK_NULL_HANDLE;
+        other.m_Allocation = VK_NULL_HANDLE;
         other.m_Mapped = nullptr;
     }
     return *this;
@@ -56,41 +56,37 @@ Ref<Buffer> Buffer::Create(Renderer* renderer, VkDeviceSize size, BufferUsage us
 void Buffer::SetData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
     if (!m_Context || !data) return;
 
-    // For device local buffers, use staging
-    VkMemoryPropertyFlags props = GetMemoryProperties(m_Usage);
-    if (props & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT && !(props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
-        // Create staging buffer
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingMemory;
+    VmaAllocationInfo allocInfo;
+    vmaGetAllocationInfo(m_Context->GetAllocator(), m_Allocation, &allocInfo);
 
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = size;
-        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    VkMemoryPropertyFlags memFlags;
+    vmaGetAllocationMemoryProperties(m_Context->GetAllocator(), m_Allocation, &memFlags);
 
-        vkCreateBuffer(m_Context->GetDevice(), &bufferInfo, nullptr, &stagingBuffer);
-
-        VkMemoryRequirements memReqs;
-        vkGetBufferMemoryRequirements(m_Context->GetDevice(), stagingBuffer, &memReqs);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memReqs.size;
-        allocInfo.memoryTypeIndex = m_Context->FindMemoryType(
-            memReqs.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        );
-
-        vkAllocateMemory(m_Context->GetDevice(), &allocInfo, nullptr, &stagingMemory);
-        vkBindBufferMemory(m_Context->GetDevice(), stagingBuffer, stagingMemory, 0);
-
+    if (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
         void* mapped;
-        vkMapMemory(m_Context->GetDevice(), stagingMemory, 0, size, 0, &mapped);
-        memcpy(mapped, data, static_cast<size_t>(size));
-        vkUnmapMemory(m_Context->GetDevice(), stagingMemory);
+        vmaMapMemory(m_Context->GetAllocator(), m_Allocation, &mapped);
+        memcpy(static_cast<char*>(mapped) + offset, data, static_cast<size_t>(size));
+        vmaUnmapMemory(m_Context->GetAllocator(), m_Allocation);
+    } else {
+        VkBufferCreateInfo stagingBufferInfo{};
+        stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        stagingBufferInfo.size = size;
+        stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        // Copy to device local buffer
+        VmaAllocationCreateInfo stagingAllocInfo{};
+        stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        VkBuffer stagingBuffer;
+        VmaAllocation stagingAllocation;
+        VmaAllocationInfo stagingInfo;
+
+        vmaCreateBuffer(m_Context->GetAllocator(), &stagingBufferInfo, &stagingAllocInfo, 
+                       &stagingBuffer, &stagingAllocation, &stagingInfo);
+
+        memcpy(stagingInfo.pMappedData, data, static_cast<size_t>(size));
+
         VkCommandBuffer cmd = m_Context->BeginSingleTimeCommands();
         
         VkBufferCopy copyRegion{};
@@ -101,38 +97,26 @@ void Buffer::SetData(const void* data, VkDeviceSize size, VkDeviceSize offset) {
         
         m_Context->EndSingleTimeCommands(cmd);
 
-        vkDestroyBuffer(m_Context->GetDevice(), stagingBuffer, nullptr);
-        vkFreeMemory(m_Context->GetDevice(), stagingMemory, nullptr);
-    } else {
-        // Direct memory mapping
-        void* mapped;
-        vkMapMemory(m_Context->GetDevice(), m_Memory, offset, size, 0, &mapped);
-        memcpy(mapped, data, static_cast<size_t>(size));
-        vkUnmapMemory(m_Context->GetDevice(), m_Memory);
+        vmaDestroyBuffer(m_Context->GetAllocator(), stagingBuffer, stagingAllocation);
     }
 }
 
 void* Buffer::Map() {
     if (m_Mapped) return m_Mapped;
     
-    vkMapMemory(m_Context->GetDevice(), m_Memory, 0, m_Size, 0, &m_Mapped);
+    vmaMapMemory(m_Context->GetAllocator(), m_Allocation, &m_Mapped);
     return m_Mapped;
 }
 
 void Buffer::Unmap() {
     if (!m_Mapped) return;
     
-    vkUnmapMemory(m_Context->GetDevice(), m_Memory);
+    vmaUnmapMemory(m_Context->GetAllocator(), m_Allocation);
     m_Mapped = nullptr;
 }
 
 void Buffer::Flush(VkDeviceSize size, VkDeviceSize offset) {
-    VkMappedMemoryRange mappedRange{};
-    mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    mappedRange.memory = m_Memory;
-    mappedRange.offset = offset;
-    mappedRange.size = size;
-    vkFlushMappedMemoryRanges(m_Context->GetDevice(), 1, &mappedRange);
+    vmaFlushAllocation(m_Context->GetAllocator(), m_Allocation, offset, size);
 }
 
 void Buffer::BindAsVertex(VkCommandBuffer cmd, u32 binding) const {
@@ -156,28 +140,18 @@ bool Buffer::Init(Renderer* renderer, VkDeviceSize size, BufferUsage usage, cons
     bufferInfo.usage = ToVkUsage(usage);
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (vkCreateBuffer(m_Context->GetDevice(), &bufferInfo, nullptr, &m_Buffer) != VK_SUCCESS) {
-        TVK_LOG_ERROR("Failed to create buffer");
-        return false;
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = GetVmaMemoryUsage(usage);
+
+    if (usage == BufferUsage::Uniform || usage == BufferUsage::StorageShared || usage == BufferUsage::Staging) {
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
     }
 
-    VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(m_Context->GetDevice(), m_Buffer, &memReqs);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReqs.size;
-    allocInfo.memoryTypeIndex = m_Context->FindMemoryType(
-        memReqs.memoryTypeBits,
-        GetMemoryProperties(usage)
-    );
-
-    if (vkAllocateMemory(m_Context->GetDevice(), &allocInfo, nullptr, &m_Memory) != VK_SUCCESS) {
-        TVK_LOG_ERROR("Failed to allocate buffer memory");
+    if (vmaCreateBuffer(m_Context->GetAllocator(), &bufferInfo, &allocInfo, 
+                        &m_Buffer, &m_Allocation, nullptr) != VK_SUCCESS) {
+        TVK_LOG_ERROR("Failed to create buffer with VMA");
         return false;
     }
-
-    vkBindBufferMemory(m_Context->GetDevice(), m_Buffer, m_Memory, 0);
 
     if (data) {
         SetData(data, size);
@@ -193,14 +167,10 @@ void Buffer::Cleanup() {
         Unmap();
     }
 
-    if (m_Buffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(m_Context->GetDevice(), m_Buffer, nullptr);
+    if (m_Buffer != VK_NULL_HANDLE && m_Allocation != VK_NULL_HANDLE) {
+        vmaDestroyBuffer(m_Context->GetAllocator(), m_Buffer, m_Allocation);
         m_Buffer = VK_NULL_HANDLE;
-    }
-
-    if (m_Memory != VK_NULL_HANDLE) {
-        vkFreeMemory(m_Context->GetDevice(), m_Memory, nullptr);
-        m_Memory = VK_NULL_HANDLE;
+        m_Allocation = VK_NULL_HANDLE;
     }
 }
 
@@ -223,18 +193,18 @@ VkBufferUsageFlags Buffer::ToVkUsage(BufferUsage usage) {
     }
 }
 
-VkMemoryPropertyFlags Buffer::GetMemoryProperties(BufferUsage usage) {
+VmaMemoryUsage Buffer::GetVmaMemoryUsage(BufferUsage usage) {
     switch (usage) {
         case BufferUsage::Vertex:
         case BufferUsage::Index:
         case BufferUsage::Storage:
-            return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            return VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
         case BufferUsage::StorageShared:
         case BufferUsage::Uniform:
         case BufferUsage::Staging:
-            return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            return VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
         default:
-            return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            return VMA_MEMORY_USAGE_AUTO;
     }
 }
 
