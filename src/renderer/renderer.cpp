@@ -613,12 +613,63 @@ void Renderer::RecreateSwapchain() {
 }
 
 VkSurfaceFormatKHR Renderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+    // Prefer linear formats first for better appearance on macOS
+    // Try linear BGRA with sRGB color space
     for (const auto& format : availableFormats) {
-        if (format.format == VK_FORMAT_B8G8R8A8_SRGB && 
+        if (format.format == VK_FORMAT_B8G8R8A8_UNORM && 
             format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            TVK_LOG_INFO("Using format: B8G8R8A8_UNORM with SRGB_NONLINEAR");
             return format;
         }
     }
+    
+    // Try linear RGBA with sRGB color space
+    for (const auto& format : availableFormats) {
+        if (format.format == VK_FORMAT_R8G8B8A8_UNORM && 
+            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            TVK_LOG_INFO("Using format: R8G8B8A8_UNORM with SRGB_NONLINEAR");
+            return format;
+        }
+    }
+    
+    // Try sRGB BGRA if linear not available
+    for (const auto& format : availableFormats) {
+        if (format.format == VK_FORMAT_B8G8R8A8_SRGB && 
+            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            TVK_LOG_INFO("Using format: B8G8R8A8_SRGB with SRGB_NONLINEAR");
+            return format;
+        }
+    }
+    
+    // Try sRGB RGBA
+    for (const auto& format : availableFormats) {
+        if (format.format == VK_FORMAT_R8G8B8A8_SRGB && 
+            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            TVK_LOG_INFO("Using format: R8G8B8A8_SRGB with SRGB_NONLINEAR");
+            return format;
+        }
+    }
+    
+    // Try any BGRA format
+    for (const auto& format : availableFormats) {
+        if (format.format == VK_FORMAT_B8G8R8A8_UNORM) {
+            TVK_LOG_INFO("Using format: B8G8R8A8_UNORM with color space {}", static_cast<int>(format.colorSpace));
+            return format;
+        }
+    }
+    
+    // Try any RGBA format
+    for (const auto& format : availableFormats) {
+        if (format.format == VK_FORMAT_R8G8B8A8_UNORM) {
+            TVK_LOG_INFO("Using format: R8G8B8A8_UNORM with color space {}", static_cast<int>(format.colorSpace));
+            return format;
+        }
+    }
+    
+    // Use the first available format
+    TVK_LOG_WARN("Using first available format: {} with color space {}", 
+                 static_cast<int>(availableFormats[0].format), 
+                 static_cast<int>(availableFormats[0].colorSpace));
     return availableFormats[0];
 }
 
