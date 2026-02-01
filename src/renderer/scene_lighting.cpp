@@ -378,8 +378,8 @@ void SceneLighting::CreateShadowPipeline() {
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.lineWidth = 1.0f;
     rasterizer.depthBiasEnable = VK_TRUE;
-    rasterizer.depthBiasConstantFactor = 1.25f;
-    rasterizer.depthBiasSlopeFactor = 1.75f;
+    rasterizer.depthBiasConstantFactor = 0.75f;
+    rasterizer.depthBiasSlopeFactor = 1.1f;
     
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -491,9 +491,16 @@ void SceneLighting::CollectLights(Scene* scene, const glm::vec3& camera_position
             _hasDirectionalLight = true;
             _directionalLightDir = direction;
             
-            glm::vec3 lightPos = -direction * 50.0f;
-            glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            glm::mat4 lightProj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 100.0f);
+            glm::vec3 lightCenter = camera_position;
+            glm::vec3 lightPos = lightCenter - direction * 60.0f;
+            
+            glm::vec3 lightUp = glm::vec3(0.0f, 1.0f, 0.0f);
+            if (glm::abs(glm::dot(direction, lightUp)) > 0.95f) {
+                lightUp = glm::vec3(1.0f, 0.0f, 0.0f);
+            }
+            
+            glm::mat4 lightView = glm::lookAt(lightPos, lightCenter, lightUp);
+            glm::mat4 lightProj = glm::ortho(-40.0f, 40.0f, -40.0f, 40.0f, 0.1f, 120.0f);
             _uboData.shadow_matrix = lightProj * lightView;
         }
         

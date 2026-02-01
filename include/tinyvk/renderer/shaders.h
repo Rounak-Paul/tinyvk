@@ -80,11 +80,19 @@ float CalculateShadow(vec3 worldPos) {
         return 1.0;
     }
     
-    float bias = 0.005;
-    float closestDepth = texture(shadowMap, projCoords.xy).r;
-    float currentDepth = projCoords.z;
-    float shadow = currentDepth - bias > closestDepth ? 0.3 : 1.0;
-    return shadow;
+    float bias = 0.001;
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0 / 2048.0);
+    
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            float closestDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            float currentDepth = projCoords.z - bias;
+            shadow += currentDepth > closestDepth ? 0.0 : 1.0;
+        }
+    }
+    
+    return shadow / 9.0;
 }
 
 void main() {

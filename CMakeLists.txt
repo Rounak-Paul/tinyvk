@@ -178,7 +178,7 @@ if(APPLE)
 elseif(WIN32)
     target_link_libraries(tinyvk PUBLIC vulkan-1 shaderc_shared)
 else()
-    target_link_libraries(tinyvk PUBLIC vulkan shaderc_shared)
+    target_link_libraries(tinyvk PUBLIC vulkan shaderc)
 endif()
 # ----------------------------------------------------------
 
