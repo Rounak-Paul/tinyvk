@@ -1,9 +1,10 @@
 /**
  * @file tinyvk.h
- * @brief Main header for TinyVK - A lightweight application framework with ImGui
+ * @brief Main header for TinyVK - A lightweight UI library with Vulkan compute and rendering API
  * 
- * TinyVK provides a simple API for creating GUI applications. The engine handles
- * all Vulkan/rendering internals - you just write ImGui code.
+ * TinyVK provides a simple API for creating GUI applications with custom compute
+ * and rendering capabilities. The library handles Vulkan internals - you write ImGui code
+ * and optionally use the compute/rendering APIs for custom GPU work.
  * 
  * Example:
  * @code
@@ -34,29 +35,19 @@
 #include "core/timer.h"
 #include "core/file_dialog.h"
 
-// Texture loading (for displaying images in ImGui)
+// Rendering API
+#include "renderer/renderer.h"
+#include "renderer/context.h"
 #include "renderer/texture.h"
-
-// Geometry and rendering
+#include "renderer/buffer.h"
 #include "renderer/vertex.h"
-#include "renderer/mesh.h"
 #include "renderer/pipeline.h"
-#include "renderer/material.h"
-#include "renderer/light.h"
-#include "renderer/view.h"
-#include "renderer/render_queue.h"
-#include "renderer/skybox.h"
-
-// Scene management and ECS
-#include "scene/camera.h"
-#include "scene/components.h"
-#include "scene/entity.h"
-#include "scene/scene.h"
+#include "renderer/shader_compiler.h"
+#include "renderer/shaders.h"
 
 // Assets - Embedded fonts and icons
 #include "assets/fonts.h"
 #include "assets/icons_font_awesome.h"
-#include "assets/model_loader.h"
 
 // UI - Custom rendering widgets
 #include "ui/render_widget.h"

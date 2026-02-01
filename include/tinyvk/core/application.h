@@ -23,14 +23,7 @@ class ImGuiLayer;
 class RenderWidget;
 class VulkanContext;
 
-/**
- * @brief Application rendering mode
- */
-enum class AppMode {
-    GUI,      // ImGui-only (Qt-style tools, editors)
-    Game,     // Direct rendering to swapchain (SDL3-style games)
-    Hybrid    // Both ImGui UI and direct rendering (level editors, etc)
-};
+
 
 /**
  * @brief Application configuration
@@ -41,7 +34,6 @@ struct AppConfig {
     u32 height = 720;
     bool vsync = true;
     bool decorated = true;
-    AppMode mode = AppMode::Hybrid;
     bool enableDockspace = true;
 };
 
@@ -115,10 +107,9 @@ public:
     void RegisterWidget(RenderWidget* widget);
     void UnregisterWidget(RenderWidget* widget);
     
-    // Direct access to renderer and window (for game mode)
+    // Direct access to renderer and window
     Renderer* GetRenderer();
     Window* GetWindow();
-    AppMode GetMode() const { return _mode; }
     
     // SDL3-style convenience helpers
     VkCommandBuffer GetCommandBuffer();
@@ -150,20 +141,20 @@ protected:
     virtual float GetDockspaceBottomOffset() { return 0.0f; }
     
     /**
-     * @brief Called before rendering starts (Game/Hybrid modes)
+     * @brief Called before rendering starts
      * Use this to prepare resources before render pass
      */
     virtual void OnPreRender() {}
     
     /**
-     * @brief Called to render directly to swapchain (Game/Hybrid modes)
-     * Override to draw your game content with Vulkan commands
+     * @brief Called for custom rendering
+     * Override to issue custom Vulkan commands
      * @param cmd Active command buffer for recording render commands
      */
     virtual void OnRender(VkCommandBuffer cmd) {}
     
     /**
-     * @brief Called after rendering finishes (Game/Hybrid modes)
+     * @brief Called after rendering finishes
      * Use this for post-processing or cleanup
      */
     virtual void OnPostRender() {}
@@ -186,7 +177,6 @@ private:
     
     std::vector<RenderWidget*> _widgets;
     
-    AppMode _mode = AppMode::Hybrid;
     bool _enableDockspace = true;
 
     bool _running = false;

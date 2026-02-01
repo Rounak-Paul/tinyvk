@@ -51,7 +51,6 @@ void App::Run(const AppConfig& config) {
 void App::Initialize(const AppConfig& config) {
     TVK_LOG_INFO("Initializing TinyVK Application: {}", config.title);
     
-    _mode = config.mode;
     _enableDockspace = config.enableDockspace;
 
     WindowConfig windowConfig;
@@ -155,34 +154,28 @@ void App::MainLoop() {
         if (_renderer->BeginFrame()) {
             OnPreRender();
             
-            // Game mode: render directly to swapchain
-            if (_mode == AppMode::Game || _mode == AppMode::Hybrid) {
-                VkCommandBuffer cmd = _renderer->GetCurrentCommandBuffer();
-                OnRender(cmd);
+            VkCommandBuffer cmd = _renderer->GetCurrentCommandBuffer();
+            OnRender(cmd);
+            
+            _imguiLayer->Begin();
+            
+            if (_enableDockspace) {
+                _imguiLayer->BeginDockspace(GetDockspaceBottomOffset());
             }
             
-            // GUI mode: render ImGui interface
-            if (_mode == AppMode::GUI || _mode == AppMode::Hybrid) {
-                _imguiLayer->Begin();
-                
-                if (_enableDockspace) {
-                    _imguiLayer->BeginDockspace(GetDockspaceBottomOffset());
-                }
-                
-                OnUI();
-                
-                if (_enableDockspace) {
-                    _imguiLayer->EndDockspace();
-                }
-                
-                for (auto* widget : _widgets) {
-                    if (widget->IsEnabled()) {
-                        widget->Render(_deltaTime);
-                    }
-                }
-                
-                _imguiLayer->End(_renderer->GetCurrentCommandBuffer());
+            OnUI();
+            
+            if (_enableDockspace) {
+                _imguiLayer->EndDockspace();
             }
+            
+            for (auto* widget : _widgets) {
+                if (widget->IsEnabled()) {
+                    widget->Render(_deltaTime);
+                }
+            }
+            
+            _imguiLayer->End(_renderer->GetCurrentCommandBuffer());
             
             OnPostRender();
             _renderer->EndFrame();
