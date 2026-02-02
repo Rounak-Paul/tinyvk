@@ -252,7 +252,7 @@ void ImGuiLayer::SetLightTheme() {
     ImGui::StyleColorsLight();
 }
 
-void ImGuiLayer::BeginDockspace(float bottomOffset) {
+void ImGuiLayer::BeginDockspace(float bottomOffset, int flags) {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     
     ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -276,8 +276,9 @@ void ImGuiLayer::BeginDockspace(float bottomOffset) {
     ImGui::Begin("##DockSpaceWindow", nullptr, windowFlags);
     ImGui::PopStyleVar(3);
 
+    ImGuiDockNodeFlags dockFlags = flags != 0 ? static_cast<ImGuiDockNodeFlags>(flags) : ImGuiDockNodeFlags_PassthruCentralNode;
     ImGuiID dockspaceId = ImGui::GetID("MainDockSpace");
-    ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockFlags);
 }
 
 void ImGuiLayer::EndDockspace() {

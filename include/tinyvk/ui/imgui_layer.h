@@ -81,8 +81,9 @@ public:
      * @brief Begin a fullscreen dockspace
      * Call this at the start of OnUI() before creating any windows
      * @param bottomOffset Space to reserve at the bottom (e.g., for a status bar)
+     * @param flags ImGuiDockNodeFlags to customize dockspace behavior
      */
-    void BeginDockspace(float bottomOffset = 0.0f);
+    void BeginDockspace(float bottomOffset = 0.0f, int flags = 0);
 
     /**
      * @brief End the fullscreen dockspace

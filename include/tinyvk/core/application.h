@@ -141,6 +141,12 @@ protected:
     virtual float GetDockspaceBottomOffset() { return 0.0f; }
     
     /**
+     * @brief Override to customize dockspace flags
+     * @return ImGuiDockNodeFlags for the main dockspace (0 = default PassthruCentralNode)
+     */
+    virtual int GetDockspaceFlags() { return 0; }
+    
+    /**
      * @brief Called before rendering starts
      * Use this to prepare resources before render pass
      */
