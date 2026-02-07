@@ -139,6 +139,7 @@ set(TINYVK_SOURCES
     src/ui/imgui_layer.cpp
     src/ui/render_widget.cpp
     src/assets/fonts.cpp
+    src/assets/nerd_fonts.cpp
 )
 
 add_library(tinyvk STATIC ${TINYVK_SOURCES})

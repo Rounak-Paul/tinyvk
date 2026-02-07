@@ -228,6 +228,10 @@ Window* App::GetWindow() {
     return _window.get();
 }
 
+ImGuiLayer* App::GetImGuiLayer() {
+    return _imguiLayer.get();
+}
+
 VkCommandBuffer App::GetCommandBuffer() {
     return _renderer->GetCurrentCommandBuffer();
 }

@@ -107,9 +107,10 @@ public:
     void RegisterWidget(RenderWidget* widget);
     void UnregisterWidget(RenderWidget* widget);
     
-    // Direct access to renderer and window
+    // Direct access to renderer, window, and imgui layer
     Renderer* GetRenderer();
     Window* GetWindow();
+    ImGuiLayer* GetImGuiLayer();
     
     // SDL3-style convenience helpers
     VkCommandBuffer GetCommandBuffer();

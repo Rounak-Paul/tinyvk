@@ -61,4 +61,19 @@ extern unsigned int fa_regular_400_size;
 extern unsigned char departure_mono[];
 extern unsigned int departure_mono_size;
 
+extern unsigned char jetbrains_mono_nerd[];
+extern unsigned int jetbrains_mono_nerd_size;
+
+extern unsigned char firacode_nerd[];
+extern unsigned int firacode_nerd_size;
+
+extern unsigned char hack_nerd[];
+extern unsigned int hack_nerd_size;
+
+extern unsigned char sourcecodepro_nerd[];
+extern unsigned int sourcecodepro_nerd_size;
+
+extern unsigned char ubuntu_mono_nerd[];
+extern unsigned int ubuntu_mono_nerd_size;
+
 } // namespace tvk

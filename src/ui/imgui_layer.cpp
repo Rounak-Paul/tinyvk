@@ -19,6 +19,40 @@
 
 namespace tvk {
 
+static std::vector<FontInfo> s_AvailableFonts = {
+    {"jetbrains_mono_nerd", "JetBrains Mono", jetbrains_mono_nerd, 0},
+    {"firacode_nerd",       "Fira Code",      firacode_nerd,       0},
+    {"hack_nerd",           "Hack",           hack_nerd,           0},
+    {"sourcecodepro_nerd",  "Source Code Pro", sourcecodepro_nerd, 0},
+    {"ubuntu_mono_nerd",    "Ubuntu Mono",    ubuntu_mono_nerd,    0},
+    {"departure",           "Departure Mono", departure_mono,      0},
+};
+
+static void InitFontSizes() {
+    static bool initialized = false;
+    if (initialized) return;
+    initialized = true;
+    s_AvailableFonts[0].dataSize = static_cast<int>(jetbrains_mono_nerd_size);
+    s_AvailableFonts[1].dataSize = static_cast<int>(firacode_nerd_size);
+    s_AvailableFonts[2].dataSize = static_cast<int>(hack_nerd_size);
+    s_AvailableFonts[3].dataSize = static_cast<int>(sourcecodepro_nerd_size);
+    s_AvailableFonts[4].dataSize = static_cast<int>(ubuntu_mono_nerd_size);
+    s_AvailableFonts[5].dataSize = static_cast<int>(departure_mono_size);
+}
+
+const std::vector<FontInfo>& ImGuiLayer::GetAvailableFonts() {
+    InitFontSizes();
+    return s_AvailableFonts;
+}
+
+static const FontInfo* FindFont(const char* fontId) {
+    InitFontSizes();
+    for (auto& f : s_AvailableFonts) {
+        if (std::strcmp(f.id, fontId) == 0) return &f;
+    }
+    return nullptr;
+}
+
 ImGuiLayer::~ImGuiLayer() {
     Cleanup();
 }
@@ -73,45 +107,7 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
     }
 
     // Load font
-    if (config.fontPath != nullptr) {
-        io.Fonts->AddFontFromFileTTF(config.fontPath, config.fontSize * config.fontScale);
-    } else if (config.useEmbeddedFont) {
-        void* fontData = roboto_medium;
-        int fontDataSize = roboto_medium_size;
-        
-        if (std::strcmp(config.embeddedFontName, "roboto") == 0) {
-            fontData = roboto_medium;
-            fontDataSize = roboto_medium_size;
-        } else if (std::strcmp(config.embeddedFontName, "lexend") == 0) {
-            fontData = lexend_regular;
-            fontDataSize = lexend_regular_size;
-        } else if (std::strcmp(config.embeddedFontName, "quicksand") == 0) {
-            fontData = quicksand_regular;
-            fontDataSize = quicksand_regular_size;
-        } else if (std::strcmp(config.embeddedFontName, "droid") == 0) {
-            fontData = droid_sans;
-            fontDataSize = droid_sans_size;
-        } else if (std::strcmp(config.embeddedFontName, "departure") == 0) {
-            fontData = departure_mono;
-            fontDataSize = departure_mono_size;
-        }
-        
-        ImFontConfig fontConfig;
-        fontConfig.FontDataOwnedByAtlas = false;
-        io.Fonts->AddFontFromMemoryTTF(fontData, fontDataSize, config.fontSize * config.fontScale, &fontConfig);
-        TVK_LOG_INFO("Loaded embedded font: {}", config.embeddedFontName);
-    } else {
-        io.FontGlobalScale = config.fontScale;
-    }
-
-    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-    ImFontConfig icons_config;
-    icons_config.MergeMode = true;
-    icons_config.PixelSnapH = true;
-    icons_config.FontDataOwnedByAtlas = false;
-    icons_config.GlyphMinAdvanceX = config.fontSize * config.fontScale;
-    io.Fonts->AddFontFromMemoryTTF(fa_solid_900, fa_solid_900_size, config.fontSize * config.fontScale, &icons_config, icons_ranges);
-    TVK_LOG_INFO("Loaded Font Awesome icons");
+    BuildFontAtlas(config.embeddedFontName, config.fontSize, config.fontScale);
 
     // Setup platform/renderer backends
     ImGui_ImplGlfw_InitForVulkan(window, true);
@@ -179,6 +175,46 @@ void ImGuiLayer::End(VkCommandBuffer commandBuffer) {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
+}
+
+void ImGuiLayer::BuildFontAtlas(const char* fontId, float fontSize, float fontScale) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->Clear();
+
+    const FontInfo* font = FindFont(fontId);
+    if (font) {
+        ImFontConfig fontConfig;
+        fontConfig.FontDataOwnedByAtlas = false;
+        io.Fonts->AddFontFromMemoryTTF(font->data, font->dataSize, fontSize * fontScale, &fontConfig);
+        TVK_LOG_INFO("Loaded font: {}", font->displayName);
+    } else {
+        // Fallback to JetBrains Mono
+        ImFontConfig fontConfig;
+        fontConfig.FontDataOwnedByAtlas = false;
+        io.Fonts->AddFontFromMemoryTTF(jetbrains_mono_nerd, static_cast<int>(jetbrains_mono_nerd_size), fontSize * fontScale, &fontConfig);
+        TVK_LOG_INFO("Font '{}' not found, using JetBrains Mono", fontId);
+    }
+
+    // Merge Font Awesome icons
+    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    ImFontConfig icons_config;
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
+    icons_config.FontDataOwnedByAtlas = false;
+    icons_config.GlyphMinAdvanceX = fontSize * fontScale;
+    io.Fonts->AddFontFromMemoryTTF(fa_solid_900, fa_solid_900_size, fontSize * fontScale, &icons_config, icons_ranges);
+}
+
+void ImGuiLayer::ReloadFont(const char* fontId, float fontSize, float fontScale) {
+    if (!m_Initialized) return;
+
+    auto& context = m_Renderer->GetContext();
+    context.WaitIdle();
+
+    BuildFontAtlas(fontId, fontSize, fontScale);
+    ImGui::GetIO().Fonts->Build();
+
+    TVK_LOG_INFO("Font reloaded: {}", fontId);
 }
 
 void ImGuiLayer::SetDarkTheme() {

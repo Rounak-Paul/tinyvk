@@ -7,6 +7,8 @@
 
 #include "../core/types.h"
 #include <vulkan/vulkan.h>
+#include <string>
+#include <vector>
 
 struct GLFWwindow;
 
@@ -15,6 +17,13 @@ namespace tvk {
 // Forward declarations
 class VulkanContext;
 class Renderer;
+
+struct FontInfo {
+    const char* id;
+    const char* displayName;
+    void* data;
+    int dataSize;
+};
 
 /**
  * @brief ImGui layer configuration
@@ -26,7 +35,7 @@ struct ImGuiConfig {
     const char* fontPath = nullptr;
     float fontSize = 16.0f;
     bool useEmbeddedFont = true;
-    const char* embeddedFontName = "departure";
+    const char* embeddedFontName = "jetbrains_mono_nerd";
 };
 
 /**
@@ -41,58 +50,27 @@ public:
     ImGuiLayer(const ImGuiLayer&) = delete;
     ImGuiLayer& operator=(const ImGuiLayer&) = delete;
 
-    /**
-     * @brief Initialize ImGui
-     */
     bool Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig& config = ImGuiConfig{});
-
-    /**
-     * @brief Cleanup ImGui resources
-     */
     void Cleanup();
-
-    /**
-     * @brief Begin ImGui frame
-     */
     void Begin();
-
-    /**
-     * @brief End ImGui frame and record draw commands
-     */
     void End(VkCommandBuffer commandBuffer);
 
-    /**
-     * @brief Set dark theme colors
-     */
     void SetDarkTheme();
-
-    /**
-     * @brief Set light theme colors
-     */
     void SetLightTheme();
 
-    /**
-     * @brief Block input events from reaching the application
-     */
     bool WantsCaptureKeyboard() const;
     bool WantsCaptureMouse() const;
 
-    /**
-     * @brief Begin a fullscreen dockspace
-     * Call this at the start of OnUI() before creating any windows
-     * @param bottomOffset Space to reserve at the bottom (e.g., for a status bar)
-     * @param flags ImGuiDockNodeFlags to customize dockspace behavior
-     */
     void BeginDockspace(float bottomOffset = 0.0f, int flags = 0);
-
-    /**
-     * @brief End the fullscreen dockspace
-     * Call this at the end of OnUI() after all windows
-     */
     void EndDockspace();
+
+    // Font management
+    void ReloadFont(const char* fontId, float fontSize, float fontScale = 1.0f);
+    static const std::vector<FontInfo>& GetAvailableFonts();
 
 private:
     void SetupStyle();
+    void BuildFontAtlas(const char* fontId, float fontSize, float fontScale);
 
     GLFWwindow* m_Window = nullptr;
     Renderer* m_Renderer = nullptr;
