@@ -143,7 +143,7 @@ bool Buffer::Init(Renderer* renderer, VkDeviceSize size, BufferUsage usage, cons
     VmaAllocationCreateInfo allocInfo{};
     allocInfo.usage = GetVmaMemoryUsage(usage);
 
-    if (usage == BufferUsage::Uniform || usage == BufferUsage::StorageShared || usage == BufferUsage::Staging) {
+    if (usage == BufferUsage::Uniform || usage == BufferUsage::StorageShared || usage == BufferUsage::Staging || usage == BufferUsage::VertexDynamic) {
         allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
     }
 
@@ -177,6 +177,7 @@ void Buffer::Cleanup() {
 VkBufferUsageFlags Buffer::ToVkUsage(BufferUsage usage) {
     switch (usage) {
         case BufferUsage::Vertex:
+        case BufferUsage::VertexDynamic:
             return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         case BufferUsage::Index:
             return VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -199,6 +200,7 @@ VmaMemoryUsage Buffer::GetVmaMemoryUsage(BufferUsage usage) {
         case BufferUsage::Index:
         case BufferUsage::Storage:
             return VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        case BufferUsage::VertexDynamic:
         case BufferUsage::StorageShared:
         case BufferUsage::Uniform:
         case BufferUsage::Staging:

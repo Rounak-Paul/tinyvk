@@ -21,6 +21,7 @@ class Renderer;
  */
 enum class BufferUsage {
     Vertex,
+    VertexDynamic,  // Host-visible vertex buffer for per-frame CPU updates (no staging stalls)
     Index,
     Uniform,
     Storage,
