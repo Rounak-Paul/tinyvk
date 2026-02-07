@@ -64,6 +64,7 @@ void RenderWidget::Initialize(Renderer* renderer) {
     OnRenderInit();
     
     _initialized = true;
+    _needsResize = false;  // Size was already applied during CreateRenderTarget
 }
 
 void RenderWidget::Render(float deltaTime) {
