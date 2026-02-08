@@ -185,12 +185,14 @@ void ImGuiLayer::BuildFontAtlas(const char* fontId, float fontSize, float fontSc
     if (font) {
         ImFontConfig fontConfig;
         fontConfig.FontDataOwnedByAtlas = false;
+        fontConfig.PixelSnapH = true;
         io.Fonts->AddFontFromMemoryTTF(font->data, font->dataSize, fontSize * fontScale, &fontConfig);
         TVK_LOG_INFO("Loaded font: {}", font->displayName);
     } else {
         // Fallback to JetBrains Mono
         ImFontConfig fontConfig;
         fontConfig.FontDataOwnedByAtlas = false;
+        fontConfig.PixelSnapH = true;
         io.Fonts->AddFontFromMemoryTTF(jetbrains_mono_nerd, static_cast<int>(jetbrains_mono_nerd_size), fontSize * fontScale, &fontConfig);
         TVK_LOG_INFO("Font '{}' not found, using JetBrains Mono", fontId);
     }
