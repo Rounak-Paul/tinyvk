@@ -682,12 +682,15 @@ VkSurfaceFormatKHR Renderer::ChooseSwapSurfaceFormat(const std::vector<VkSurface
 }
 
 VkPresentModeKHR Renderer::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
-    if (!m_Config.vsync) {
-        for (const auto& mode : availablePresentModes) {
-            if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-                return mode;
-            }
+    // Always prefer MAILBOX (triple-buffered, tear-free, better frame pacing
+    // than FIFO on macOS / MoltenVK where WindowServer compositing can cause
+    // irregular frame delivery for non-fullscreen windows).
+    for (const auto& mode : availablePresentModes) {
+        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return mode;
         }
+    }
+    if (!m_Config.vsync) {
         for (const auto& mode : availablePresentModes) {
             if (mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
                 return mode;

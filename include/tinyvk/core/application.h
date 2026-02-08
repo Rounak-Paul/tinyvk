@@ -34,6 +34,7 @@ struct AppConfig {
     u32 height = 720;
     bool vsync = true;
     bool decorated = true;
+    bool maximized = false;
     bool enableDockspace = true;
 };
 

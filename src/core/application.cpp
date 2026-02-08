@@ -59,6 +59,7 @@ void App::Initialize(const AppConfig& config) {
     windowConfig.height = config.height;
     windowConfig.vsync = config.vsync;
     windowConfig.decorated = config.decorated;
+    windowConfig.maximized = config.maximized;
 
     _window = CreateScope<Window>(windowConfig);
 
