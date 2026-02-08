@@ -27,7 +27,7 @@ public:
     Pipeline() = default;
     ~Pipeline();
 
-    bool Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE);
+    bool Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE, const std::vector<VkPushConstantRange>& pushConstants = {}, bool depthTest = true);
     void Destroy();
     
     void Bind(VkCommandBuffer cmd);

@@ -108,7 +108,7 @@ void Renderer::Cleanup() {
     m_Context.Cleanup();
 }
 
-bool Renderer::BeginFrame() {
+bool Renderer::BeginFrame(bool beginRenderPass) {
     auto& frame = m_Frames[m_CurrentFrame];
 
     // Wait for the current frame's fence to be signaled
@@ -157,6 +157,14 @@ bool Renderer::BeginFrame() {
         return false;
     }
 
+    if (beginRenderPass) {
+        BeginSwapchainRenderPass(frame.commandBuffer);
+    }
+
+    return true;
+}
+
+void Renderer::BeginSwapchainRenderPass(VkCommandBuffer cmd) {
     // Begin render pass
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -172,7 +180,7 @@ bool Renderer::BeginFrame() {
     renderPassInfo.clearValueCount = static_cast<u32>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
 
-    vkCmdBeginRenderPass(frame.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // Set viewport and scissor
     VkViewport viewport{};
@@ -182,21 +190,21 @@ bool Renderer::BeginFrame() {
     viewport.height = static_cast<float>(m_SwapchainExtent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(frame.commandBuffer, 0, 1, &viewport);
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = m_SwapchainExtent;
-    vkCmdSetScissor(frame.commandBuffer, 0, 1, &scissor);
-
-    return true;
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
 }
 
-void Renderer::EndFrame() {
+void Renderer::EndFrame(bool endRenderPass) {
     auto& frame = m_Frames[m_CurrentFrame];
 
     // End render pass
-    vkCmdEndRenderPass(frame.commandBuffer);
+    if (endRenderPass) {
+        vkCmdEndRenderPass(frame.commandBuffer);
+    }
 
     if (vkEndCommandBuffer(frame.commandBuffer) != VK_SUCCESS) {
         TVK_LOG_ERROR("Failed to record command buffer");

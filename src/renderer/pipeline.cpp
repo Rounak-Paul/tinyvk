@@ -16,7 +16,7 @@ Pipeline::~Pipeline() {
     Destroy();
 }
 
-bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout) {
+bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout, const std::vector<VkPushConstantRange>& pushConstants, bool depthTest) {
     _renderer = renderer;
     auto& ctx = renderer->GetContext();
     VkDevice device = ctx.GetDevice();
@@ -57,6 +57,9 @@ bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::st
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<u32>(attributeDescriptions.size());
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
+    // If using screen quad shader without inputs, we still provide binding descriptions but the shader ignores them.
+    // Ideally we would want to disable vertex input if the shader doesn't use it, but keeping it generic is fine for now.
+
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -73,7 +76,7 @@ bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::st
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -84,8 +87,8 @@ bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::st
 
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthTestEnable = depthTest ? VK_TRUE : VK_FALSE;
+    depthStencil.depthWriteEnable = depthTest ? VK_TRUE : VK_FALSE;
     depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.stencilTestEnable = VK_FALSE;
@@ -110,15 +113,22 @@ bool Pipeline::Create(Renderer* renderer, VkRenderPass renderPass, const std::st
     dynamicState.dynamicStateCount = static_cast<u32>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(PushConstants);
+    // Handle Push Constants
+    std::vector<VkPushConstantRange> ranges;
+    if (pushConstants.empty()) {
+        VkPushConstantRange defaultRange{};
+        defaultRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        defaultRange.offset = 0;
+        defaultRange.size = sizeof(PushConstants);
+        ranges.push_back(defaultRange);
+    } else {
+        ranges = pushConstants;
+    }
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.pushConstantRangeCount = 1;
-    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+    pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(ranges.size());
+    pipelineLayoutInfo.pPushConstantRanges = ranges.data();
     if (descriptorSetLayout != VK_NULL_HANDLE) {
         pipelineLayoutInfo.setLayoutCount = 1;
         pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;

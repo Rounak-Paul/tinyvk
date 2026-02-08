@@ -64,14 +64,22 @@ public:
 
     /**
      * @brief Begin a new frame
+     * @param beginRenderPass Whether to begin the default swapchain render pass
      * @return true if frame was successfully started
      */
-    bool BeginFrame();
+    bool BeginFrame(bool beginRenderPass = true);
 
     /**
      * @brief End the current frame and present
+     * @param endRenderPass Whether to end the current render pass (assumed to be swapchain)
      */
-    void EndFrame();
+    void EndFrame(bool endRenderPass = true);
+
+    /**
+     * @brief Manually begin the swapchain render pass
+     * Useful when performing offscreen rendering first
+     */
+    void BeginSwapchainRenderPass(VkCommandBuffer cmd);
 
     /**
      * @brief Handle window resize
@@ -82,6 +90,11 @@ public:
      * @brief Set clear color
      */
     void SetClearColor(const Color& color) { m_ClearColor = color; }
+
+    /**
+     * @brief Get clear color
+     */
+    const Color& GetClearColor() const { return m_ClearColor; }
 
     /**
      * @brief Get the Vulkan context
