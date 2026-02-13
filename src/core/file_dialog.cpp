@@ -330,6 +330,16 @@ std::optional<std::string> FileDialog::OpenFile(
         cmd += " --filename=\"" + defaultPath + "\"";
     }
     
+    for (const auto& filter : filters) {
+        std::string pattern = filter.pattern;
+        size_t pos = 0;
+        while ((pos = pattern.find(';', pos)) != std::string::npos) {
+            pattern.replace(pos, 1, " ");
+            pos++;
+        }
+        cmd += " --file-filter=\"" + filter.name + " | " + pattern + "\"";
+    }
+    
     FILE* pipe = popen(cmd.c_str(), "r");
     if (!pipe) return std::nullopt;
     
@@ -354,7 +364,20 @@ std::vector<std::string> FileDialog::OpenFiles(
     const std::vector<FileFilter>& filters,
     const std::string& defaultPath) {
     
-    std::string cmd = "zenity --file-selection --multiple --separator='\n'";
+    std::string cmd = "zenity --file-selection --multiple --separator=\"|\"";
+    if (!defaultPath.empty()) {
+        cmd += " --filename=\"" + defaultPath + "\"";
+    }
+    
+    for (const auto& filter : filters) {
+        std::string pattern = filter.pattern;
+        size_t pos = 0;
+        while ((pos = pattern.find(';', pos)) != std::string::npos) {
+            pattern.replace(pos, 1, " ");
+            pos++;
+        }
+        cmd += " --file-filter=\"" + filter.name + " | " + pattern + "\"";
+    }
     
     FILE* pipe = popen(cmd.c_str(), "r");
     if (!pipe) return {};
@@ -364,14 +387,20 @@ std::vector<std::string> FileDialog::OpenFiles(
     std::string current;
     while (fgets(buffer, sizeof(buffer), pipe)) {
         current += buffer;
-        size_t pos;
-        while ((pos = current.find('\n')) != std::string::npos) {
-            result.push_back(current.substr(0, pos));
-            current = current.substr(pos + 1);
-        }
     }
-    if (!current.empty()) {
-        result.push_back(current);
+    
+    if (!current.empty() && current.back() == '\n') {
+        current.pop_back();
+    }
+    
+    size_t pos = 0;
+    size_t next_pos;
+    while ((next_pos = current.find('|', pos)) != std::string::npos) {
+        result.push_back(current.substr(pos, next_pos - pos));
+        pos = next_pos + 1;
+    }
+    if (pos < current.length()) {
+        result.push_back(current.substr(pos));
     }
     
     pclose(pipe);
@@ -385,6 +414,16 @@ std::optional<std::string> FileDialog::SaveFile(
     std::string cmd = "zenity --file-selection --save --confirm-overwrite";
     if (!defaultPath.empty()) {
         cmd += " --filename=\"" + defaultPath + "\"";
+    }
+    
+    for (const auto& filter : filters) {
+        std::string pattern = filter.pattern;
+        size_t pos = 0;
+        while ((pos = pattern.find(';', pos)) != std::string::npos) {
+            pattern.replace(pos, 1, " ");
+            pos++;
+        }
+        cmd += " --file-filter=\"" + filter.name + " | " + pattern + "\"";
     }
     
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -517,3 +556,4 @@ std::vector<std::string> FileSystem::ListDirectory(const std::string& path, bool
 }
 
 } // namespace tvk
+
