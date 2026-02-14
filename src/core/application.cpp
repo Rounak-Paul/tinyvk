@@ -52,6 +52,8 @@ void App::Initialize(const AppConfig& config) {
     TVK_LOG_INFO("Initializing TinyVK Application: {}", config.title);
     
     _enableDockspace = config.enableDockspace;
+    _enableIdleThrottling = config.enableIdleThrottling;
+    _idleFrameInterval = 1.0f / config.idleFrameRate;
 
     WindowConfig windowConfig;
     windowConfig.title = config.title;
@@ -127,6 +129,8 @@ void App::Shutdown() {
 void App::MainLoop() {
     u32 frameCount = 0;
     float fpsTimer = 0.0f;
+    float idleTimer = 0.0f;
+    constexpr float IDLE_THRESHOLD = 0.5f;  // Seconds of no input before throttling
 
     while (_running && !_window->ShouldClose()) {
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -142,7 +146,21 @@ void App::MainLoop() {
             fpsTimer = 0.0f;
         }
 
-        _window->PollEvents();
+        // Check if there was any recent input activity
+        bool hasActivity = Input::HasRecentActivity();
+        if (hasActivity) {
+            idleTimer = 0.0f;
+        } else {
+            idleTimer += _deltaTime;
+        }
+
+        // Use WaitEventsTimeout when idle to reduce CPU/GPU usage
+        bool isIdle = _enableIdleThrottling && (idleTimer > IDLE_THRESHOLD);
+        if (isIdle) {
+            _window->WaitEventsTimeout(_idleFrameInterval);
+        } else {
+            _window->PollEvents();
+        }
         Input::Update();
 
         if (_window->IsMinimized()) {

@@ -162,6 +162,12 @@ public:
      */
     static void Update();
 
+    /**
+     * @brief Check if there was any input activity this frame
+     * Used for idle detection and frame throttling
+     */
+    static bool HasRecentActivity();
+
 private:
     static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
@@ -178,6 +184,7 @@ private:
     static inline bool s_PreviousKeyState[KEY_COUNT] = {};
     static inline bool s_CurrentMouseState[MOUSE_BUTTON_COUNT] = {};
     static inline bool s_PreviousMouseState[MOUSE_BUTTON_COUNT] = {};
+    static inline bool s_HasActivity = false;
 };
 
 } // namespace tvk

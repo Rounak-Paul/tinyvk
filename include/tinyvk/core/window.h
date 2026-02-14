@@ -134,6 +134,12 @@ public:
     void WaitEvents();
 
     /**
+     * @brief Wait for window events with timeout
+     * @param timeout Maximum time to wait in seconds
+     */
+    void WaitEventsTimeout(double timeout);
+
+    /**
      * @brief Get window position
      */
     void GetPosition(i32& x, i32& y) const;

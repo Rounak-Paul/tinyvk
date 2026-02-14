@@ -5,6 +5,7 @@
 
 #include "tinyvk/core/input.h"
 #include <cstring>
+#include <cmath>
 
 namespace tvk {
 
@@ -100,11 +101,46 @@ void Input::Update() {
     s_MouseDelta = currentPos - s_LastMousePos;
     s_LastMousePos = currentPos;
     
+    // Detect activity: key state changes, mouse movement, mouse button changes, or scroll
+    s_HasActivity = false;
+    
+    // Check for key state changes
+    for (int i = 0; i < KEY_COUNT; ++i) {
+        if (s_CurrentKeyState[i] != s_PreviousKeyState[i]) {
+            s_HasActivity = true;
+            break;
+        }
+    }
+    
+    // Check for mouse button changes
+    if (!s_HasActivity) {
+        for (int i = 0; i < MOUSE_BUTTON_COUNT; ++i) {
+            if (s_CurrentMouseState[i] != s_PreviousMouseState[i]) {
+                s_HasActivity = true;
+                break;
+            }
+        }
+    }
+    
+    // Check for mouse movement (with small threshold to ignore jitter)
+    if (!s_HasActivity) {
+        constexpr float MOUSE_THRESHOLD = 0.5f;
+        if (std::abs(s_MouseDelta.x) > MOUSE_THRESHOLD || std::abs(s_MouseDelta.y) > MOUSE_THRESHOLD) {
+            s_HasActivity = true;
+        }
+    }
+    
+    // Scroll delta is checked in HasRecentActivity since it's reset here
     s_ScrollDelta = {0.0f, 0.0f};
+}
+
+bool Input::HasRecentActivity() {
+    return s_HasActivity || (s_ScrollDelta.x != 0.0f || s_ScrollDelta.y != 0.0f);
 }
 
 void Input::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
     s_ScrollDelta = {static_cast<float>(xoffset), static_cast<float>(yoffset)};
+    s_HasActivity = true;  // Mark activity on scroll
 }
 
 } // namespace tvk

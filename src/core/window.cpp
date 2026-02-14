@@ -152,6 +152,10 @@ void Window::WaitEvents() {
     glfwWaitEvents();
 }
 
+void Window::WaitEventsTimeout(double timeout) {
+    glfwWaitEventsTimeout(timeout);
+}
+
 void Window::GetPosition(i32& x, i32& y) const {
     glfwGetWindowPos(m_Window, &x, &y);
 }

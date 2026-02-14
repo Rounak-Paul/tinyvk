@@ -36,6 +36,8 @@ struct AppConfig {
     bool decorated = true;
     bool maximized = false;
     bool enableDockspace = true;
+    bool enableIdleThrottling = true;  // Reduce frame rate when idle to save GPU
+    float idleFrameRate = 30.0f;       // Target FPS when idle (default 30)
 };
 
 // Legacy alias
@@ -186,6 +188,8 @@ private:
     std::vector<RenderWidget*> _widgets;
     
     bool _enableDockspace = true;
+    bool _enableIdleThrottling = true;
+    float _idleFrameInterval = 1.0f / 30.0f;  // Target frame time when idle
 
     bool _running = false;
     float _deltaTime = 0.0f;
