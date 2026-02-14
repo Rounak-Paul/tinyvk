@@ -28,6 +28,10 @@ public:
     ~Pipeline();
 
     bool Create(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE, const std::vector<VkPushConstantRange>& pushConstants = {}, bool depthTest = true);
+    
+    // Create a fullscreen quad pipeline (no vertex input - generates vertices in shader)
+    bool CreateFullscreenQuad(Renderer* renderer, VkRenderPass renderPass, const std::string& vertShaderSource, const std::string& fragShaderSource, VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE, const std::vector<VkPushConstantRange>& pushConstants = {});
+    
     void Destroy();
     
     void Bind(VkCommandBuffer cmd);
