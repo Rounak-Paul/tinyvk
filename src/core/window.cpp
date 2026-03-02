@@ -16,13 +16,6 @@ static u32 s_GLFWWindowCount = 0;
 Window::Window(const WindowConfig& config) : m_Config(config) {
     // Initialize GLFW if this is the first window
     if (s_GLFWWindowCount == 0) {
-#ifdef __linux__
-        // Force X11 on Linux for consistent multi-viewport support.
-        // Wayland does not support arbitrary window positioning, which
-        // breaks ImGui multi-viewport (floating windows can't leave the
-        // main window). XWayland provides this on Wayland sessions.
-        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-#endif
         if (!glfwInit()) {
             TVK_LOG_FATAL("Failed to initialize GLFW");
             return;
