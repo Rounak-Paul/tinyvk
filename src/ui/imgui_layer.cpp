@@ -96,7 +96,9 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
     ImGui::CreateContext();
 
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    if (config.enableKeyboardNav) {
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    }
     
     if (config.enableDocking) {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;

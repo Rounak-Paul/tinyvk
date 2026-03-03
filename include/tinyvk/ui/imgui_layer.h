@@ -31,6 +31,7 @@ struct FontInfo {
 struct ImGuiConfig {
     bool enableDocking = true;
     bool enableViewports = false;
+    bool enableKeyboardNav = true;
     float fontScale = 1.0f;
     const char* fontPath = nullptr;
     float fontSize = 16.0f;

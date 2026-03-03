@@ -36,6 +36,7 @@ struct AppConfig {
     bool decorated = true;
     bool maximized = false;
     bool enableDockspace = true;
+    bool enableKeyboardNav = true;     // ImGui keyboard navigation (Tab, arrows for widgets)
     bool enableIdleThrottling = true;  // Reduce frame rate when idle to save GPU
     float idleFrameRate = 30.0f;       // Target FPS when idle (default 30)
 };
