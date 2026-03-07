@@ -33,12 +33,11 @@ struct AppConfig {
     u32 width = 1280;
     u32 height = 720;
     bool vsync = true;
-    bool decorated = true;
     bool maximized = false;
     bool enableDockspace = true;
-    bool enableKeyboardNav = true;     // ImGui keyboard navigation (Tab, arrows for widgets)
-    bool enableIdleThrottling = true;  // Reduce frame rate when idle to save GPU
-    float idleFrameRate = 30.0f;       // Target FPS when idle (default 30)
+    bool enableKeyboardNav = true;
+    bool enableIdleThrottling = true;
+    float idleFrameRate = 30.0f;
 };
 
 // Legacy alias
@@ -133,6 +132,12 @@ protected:
     virtual void OnUpdate() {}
 
     /**
+     * @brief Called every frame to populate the title bar menu
+     * Override to add menus: if (ImGui::BeginMenu("File")) { ... ImGui::EndMenu(); }
+     */
+    virtual void OnMenuBar() {}
+
+    /**
      * @brief Called every frame - override to draw your ImGui UI
      * This is where you write all your ImGui code
      */
@@ -201,19 +206,4 @@ private:
     std::chrono::high_resolution_clock::time_point _startTime;
 };
 
-// Legacy alias
-using Application = App;
-
 } // namespace tvk
-
-/**
- * @brief Convenience macro to create main() function
- * 
- * Usage: TVK_MAIN(MyAppClass, "Window Title", 1280, 720)
- */
-#define TVK_MAIN(AppClass, title, width, height) \
-    int main() { \
-        AppClass app; \
-        app.Run(title, width, height); \
-        return 0; \
-    }

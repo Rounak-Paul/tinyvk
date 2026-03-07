@@ -28,7 +28,7 @@ Window::Window(const WindowConfig& config) : m_Config(config) {
     // Vulkan requires no default API
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
-    glfwWindowHint(GLFW_DECORATED, config.decorated ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
     glfwWindowHint(GLFW_MAXIMIZED, config.maximized ? GLFW_TRUE : GLFW_FALSE);
 
     GLFWmonitor* monitor = config.fullscreen ? glfwGetPrimaryMonitor() : nullptr;
@@ -138,7 +138,11 @@ bool Window::IsMinimized() const {
 }
 
 bool Window::IsMaximized() const {
+#ifdef TVK_PLATFORM_APPLE
+    return m_ManuallyMaximized;
+#else
     return glfwGetWindowAttrib(m_Window, GLFW_MAXIMIZED) == GLFW_TRUE;
+#endif
 }
 
 void Window::WaitEvents() {
@@ -166,11 +170,40 @@ void Window::Iconify() {
 }
 
 void Window::Maximize() {
+#ifdef TVK_PLATFORM_APPLE
+    if (m_ManuallyMaximized) return;
+    glfwGetWindowPos(m_Window, &m_RestoreX, &m_RestoreY);
+    int w, h;
+    glfwGetWindowSize(m_Window, &w, &h);
+    m_RestoreWidth = static_cast<u32>(w);
+    m_RestoreHeight = static_cast<u32>(h);
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if (monitor) {
+        int work_x, work_y, work_w, work_h;
+        glfwGetMonitorWorkarea(monitor, &work_x, &work_y, &work_w, &work_h);
+        glfwSetWindowPos(m_Window, work_x, work_y);
+        glfwSetWindowSize(m_Window, work_w, work_h);
+    }
+    m_ManuallyMaximized = true;
+#else
     glfwMaximizeWindow(m_Window);
+#endif
 }
 
 void Window::Restore() {
+#ifdef TVK_PLATFORM_APPLE
+    if (!m_ManuallyMaximized) {
+        glfwRestoreWindow(m_Window);
+        return;
+    }
+    if (m_RestoreWidth > 0 && m_RestoreHeight > 0) {
+        glfwSetWindowPos(m_Window, m_RestoreX, m_RestoreY);
+        glfwSetWindowSize(m_Window, static_cast<int>(m_RestoreWidth), static_cast<int>(m_RestoreHeight));
+    }
+    m_ManuallyMaximized = false;
+#else
     glfwRestoreWindow(m_Window);
+#endif
 }
 
 void Window::FramebufferResizeCallback(GLFWwindow* window, int width, int height) {

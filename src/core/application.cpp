@@ -60,7 +60,6 @@ void App::Initialize(const AppConfig& config) {
     windowConfig.width = config.width;
     windowConfig.height = config.height;
     windowConfig.vsync = config.vsync;
-    windowConfig.decorated = config.decorated;
     windowConfig.maximized = config.maximized;
 
     _window = CreateScope<Window>(windowConfig);
@@ -94,7 +93,7 @@ void App::Initialize(const AppConfig& config) {
     imguiConfig.enableKeyboardNav = config.enableKeyboardNav;
 
     _imguiLayer = CreateScope<ImGuiLayer>();
-    if (!_imguiLayer->Init(_window->GetNativeHandle(), _renderer.get(), imguiConfig)) {
+    if (!_imguiLayer->Init(_window.get(), _renderer.get(), imguiConfig, [this]() { OnMenuBar(); })) {
         TVK_LOG_FATAL("Failed to initialize ImGui");
         return;
     }

@@ -21,7 +21,6 @@ struct WindowConfig {
     u32 width = 1280;
     u32 height = 720;
     bool resizable = true;
-    bool decorated = true;
     bool vsync = true;
     bool fullscreen = false;
     bool maximized = false;
@@ -175,6 +174,14 @@ private:
     ResizeCallback m_ResizeCallback;
     CloseCallback m_CloseCallback;
     MaximizeCallback m_MaximizeCallback;
+
+#ifdef TVK_PLATFORM_APPLE
+    bool m_ManuallyMaximized = false;
+    i32 m_RestoreX = 0;
+    i32 m_RestoreY = 0;
+    u32 m_RestoreWidth = 0;
+    u32 m_RestoreHeight = 0;
+#endif
 
     static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
     static void WindowCloseCallback(GLFWwindow* window);

@@ -13,13 +13,35 @@ class SandboxApp : public tvk::App {
 protected:
     void OnStart() override {
         TVK_LOG_INFO("Sandbox application started!");
-        
+
         SetClearColor(0.1f, 0.1f, 0.12f, 1.0f);
-        
+
         _counter = 0;
         _textInput[0] = '\0';
-        
+
         InitComputeDemo();
+    }
+
+    void OnMenuBar() override {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Open Image...", "Ctrl+O")) {
+                OpenImageFile();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit", "Esc")) {
+                Quit();
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("ImGui Demo", nullptr, &_showDemoWindow);
+            ImGui::MenuItem("Stats", nullptr, &_showStats);
+            ImGui::MenuItem("Image Viewer", nullptr, &_showImageViewer);
+            ImGui::MenuItem("Compute Demo", nullptr, &_showComputeDemo);
+            ImGui::MenuItem("Controls", nullptr, &_showControls);
+            ImGui::MenuItem("About", nullptr, &_showAbout);
+            ImGui::EndMenu();
+        }
     }
 
     void OnUpdate() override {
@@ -29,34 +51,8 @@ protected:
     }
 
     void OnUI() override {
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::DockSpaceOverViewport(0, viewport);
-
         if (_showDemoWindow) {
             ImGui::ShowDemoWindow(&_showDemoWindow);
-        }
-
-        if (ImGui::BeginMainMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Open Image...", "Ctrl+O")) {
-                    OpenImageFile();
-                }
-                ImGui::Separator();
-                if (ImGui::MenuItem("Exit", "Esc")) {
-                    Quit();
-                }
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("View")) {
-                ImGui::MenuItem("ImGui Demo", nullptr, &_showDemoWindow);
-                ImGui::MenuItem("Stats", nullptr, &_showStats);
-                ImGui::MenuItem("Image Viewer", nullptr, &_showImageViewer);
-                ImGui::MenuItem("Compute Demo", nullptr, &_showComputeDemo);
-                ImGui::MenuItem("Controls", nullptr, &_showControls);
-                ImGui::MenuItem("About", nullptr, &_showAbout);
-                ImGui::EndMenu();
-            }
-            ImGui::EndMainMenuBar();
         }
 
         if (_showStats) {

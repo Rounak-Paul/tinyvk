@@ -7,6 +7,7 @@
 
 #include "../core/types.h"
 #include <vulkan/vulkan.h>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@ namespace tvk {
 // Forward declarations
 class VulkanContext;
 class Renderer;
+class Window;
 
 struct FontInfo {
     const char* id;
@@ -51,7 +53,7 @@ public:
     ImGuiLayer(const ImGuiLayer&) = delete;
     ImGuiLayer& operator=(const ImGuiLayer&) = delete;
 
-    bool Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig& config = ImGuiConfig{});
+    bool Init(Window* window, Renderer* renderer, const ImGuiConfig& config = ImGuiConfig{}, std::function<void()> menuBarCb = {});
     void Cleanup();
     void Begin();
     void End(VkCommandBuffer commandBuffer);
@@ -72,7 +74,10 @@ public:
 private:
     void SetupStyle();
     void BuildFontAtlas(const char* fontId, float fontSize, float fontScale);
+    void render_title_bar();
 
+    std::function<void()> m_TitleBarMenuCb;
+    Window* m_tvkWindow = nullptr;
     GLFWwindow* m_Window = nullptr;
     Renderer* m_Renderer = nullptr;
     VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;

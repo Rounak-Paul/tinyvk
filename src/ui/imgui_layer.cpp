@@ -7,6 +7,7 @@
 #include "tinyvk/renderer/renderer.h"
 #include "tinyvk/renderer/context.h"
 #include "tinyvk/core/log.h"
+#include "tinyvk/core/window.h"
 #include "tinyvk/assets/fonts.h"
 #include "tinyvk/assets/icons_font_awesome.h"
 
@@ -57,10 +58,12 @@ ImGuiLayer::~ImGuiLayer() {
     Cleanup();
 }
 
-bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig& config) {
-    m_Window = window;
+bool ImGuiLayer::Init(Window* window, Renderer* renderer, const ImGuiConfig& config, std::function<void()> menuBarCb) {
+    m_tvkWindow = window;
+    m_Window = window->GetNativeHandle();
     m_Renderer = renderer;
     m_Config = config;
+    m_TitleBarMenuCb = std::move(menuBarCb);
 
     auto& context = renderer->GetContext();
 
@@ -112,7 +115,7 @@ bool ImGuiLayer::Init(GLFWwindow* window, Renderer* renderer, const ImGuiConfig&
     BuildFontAtlas(config.embeddedFontName, config.fontSize, config.fontScale);
 
     // Setup platform/renderer backends
-    ImGui_ImplGlfw_InitForVulkan(window, true);
+    ImGui_ImplGlfw_InitForVulkan(m_Window, true);
 
     ImGui_ImplVulkan_InitInfo initInfo{};
     initInfo.Instance = context.GetInstance();
@@ -294,13 +297,11 @@ void ImGuiLayer::SetLightTheme() {
 
 void ImGuiLayer::BeginDockspace(float bottomOffset, int flags) {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, viewport->WorkSize.y - bottomOffset));
-    ImGui::SetNextWindowViewport(viewport->ID);
 
     ImGuiWindowFlags windowFlags =
+        ImGuiWindowFlags_MenuBar |
         ImGuiWindowFlags_NoDocking |
+        ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoResize |
@@ -309,16 +310,194 @@ void ImGuiLayer::BeginDockspace(float bottomOffset, int flags) {
         ImGuiWindowFlags_NoNavFocus |
         ImGuiWindowFlags_NoBackground;
 
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, viewport->Size.y - bottomOffset));
+    ImGui::SetNextWindowViewport(viewport->ID);
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_BorderShadow, ImVec4(0, 0, 0, 0));
 
     ImGui::Begin("##DockSpaceWindow", nullptr, windowFlags);
-    ImGui::PopStyleVar(3);
+
+    ImGui::PopStyleVar(5);
+    ImGui::PopStyleColor(2);
+
+    render_title_bar();
 
     ImGuiDockNodeFlags dockFlags = flags != 0 ? static_cast<ImGuiDockNodeFlags>(flags) : ImGuiDockNodeFlags_PassthruCentralNode;
     ImGuiID dockspaceId = ImGui::GetID("MainDockSpace");
     ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockFlags);
+}
+
+void ImGuiLayer::render_title_bar() {
+    static bool is_dragging = false;
+    static ImVec2 drag_offset;
+    static bool resizing = false;
+    static int resize_dir = 0;
+    static ImVec2 last_mouse_pos;
+
+    auto& colors = ImGui::GetStyle().Colors;
+    ImVec4 transparent = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+    ImVec4 btn_hovered = ImVec4(colors[ImGuiCol_ButtonHovered].x, colors[ImGuiCol_ButtonHovered].y, colors[ImGuiCol_ButtonHovered].z, 0.5f);
+
+    if (ImGui::BeginMenuBar()) {
+        ImVec2 menu_bar_pos = ImGui::GetWindowPos();
+        float window_width = ImGui::GetWindowWidth();
+        float menu_bar_height = ImGui::GetFrameHeight();
+        ImVec2 mouse_pos = ImGui::GetMousePos();
+
+        const int btn_count = 3;
+        const float pad = 8.0f;
+        const float spacing = 4.0f;
+        const float icon_size = menu_bar_height;
+        float total_w = btn_count * icon_size + (btn_count - 1) * spacing;
+        float buttons_start_x = menu_bar_pos.x + window_width - pad - total_w;
+
+        bool mouse_over_buttons = (mouse_pos.x >= buttons_start_x &&
+                                   mouse_pos.x <= menu_bar_pos.x + window_width &&
+                                   mouse_pos.y >= menu_bar_pos.y &&
+                                   mouse_pos.y <= menu_bar_pos.y + menu_bar_height);
+
+        bool mouse_over_bar = (mouse_pos.x >= menu_bar_pos.x &&
+                               mouse_pos.x <= menu_bar_pos.x + window_width &&
+                               mouse_pos.y >= menu_bar_pos.y &&
+                               mouse_pos.y <= menu_bar_pos.y + menu_bar_height);
+
+        if (mouse_over_bar && !mouse_over_buttons &&
+            ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+            !ImGui::IsAnyItemHovered()) {
+            is_dragging = true;
+            double cx, cy;
+            glfwGetCursorPos(m_Window, &cx, &cy);
+            drag_offset.x = static_cast<float>(cx);
+            drag_offset.y = static_cast<float>(cy);
+        }
+
+        if (is_dragging) {
+            if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                double cx, cy;
+                glfwGetCursorPos(m_Window, &cx, &cy);
+                i32 wx, wy;
+                m_tvkWindow->GetPosition(wx, wy);
+                float screen_x = static_cast<float>(cx) + static_cast<float>(wx);
+                float screen_y = static_cast<float>(cy) + static_cast<float>(wy);
+                m_tvkWindow->SetPosition(
+                    static_cast<i32>(screen_x - drag_offset.x),
+                    static_cast<i32>(screen_y - drag_offset.y));
+            } else {
+                is_dragging = false;
+            }
+        }
+
+        if (m_TitleBarMenuCb) {
+            m_TitleBarMenuCb();
+        }
+
+        const std::string& title = m_tvkWindow->GetTitle();
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 text_size = ImGui::CalcTextSize(title.c_str());
+        float text_x = menu_bar_pos.x + (window_width - text_size.x) * 0.5f;
+        float text_y = menu_bar_pos.y + (menu_bar_height - text_size.y) * 0.5f;
+        draw_list->AddText(ImVec2(text_x, text_y), ImGui::GetColorU32(ImGuiCol_Text), title.c_str());
+
+        float start_x = window_width - pad - total_w;
+        ImGui::SetCursorPosX(start_x);
+        ImVec2 btn_size(icon_size, menu_bar_height);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, transparent);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, btn_hovered);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, colors[ImGuiCol_ButtonActive]);
+        ImGui::PushStyleColor(ImGuiCol_Border, transparent);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+
+        if (ImGui::Button(ICON_FA_MINUS "##minimize", btn_size))
+            m_tvkWindow->Iconify();
+        ImGui::SameLine(0, spacing);
+
+        bool is_maximized = m_tvkWindow->IsMaximized();
+        const char* max_icon = is_maximized ? ICON_FA_WINDOW_RESTORE "##maximize" : ICON_FA_WINDOW_MAXIMIZE "##maximize";
+        if (ImGui::Button(max_icon, btn_size)) {
+            if (is_maximized)
+                m_tvkWindow->Restore();
+            else
+                m_tvkWindow->Maximize();
+        }
+        ImGui::SameLine(0, spacing);
+
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.80f, 0.10f, 0.10f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.60f, 0.05f, 0.05f, 1.0f));
+        if (ImGui::Button(ICON_FA_XMARK "##close", btn_size))
+            m_tvkWindow->Close();
+        ImGui::PopStyleColor(2);
+
+        ImGui::PopStyleVar(3);
+        ImGui::PopStyleColor(4);
+
+        ImGui::EndMenuBar();
+    }
+
+    ImVec2 win_pos = ImGui::GetWindowPos();
+    ImVec2 win_size = ImGui::GetWindowSize();
+    ImVec2 mouse_pos = ImGui::GetMousePos();
+    const float border_thickness = 6.0f;
+
+    ImVec2 rb_min = ImVec2(win_pos.x + win_size.x - border_thickness, win_pos.y);
+    ImVec2 rb_max = ImVec2(win_pos.x + win_size.x, win_pos.y + win_size.y);
+    ImVec2 bb_min = ImVec2(win_pos.x, win_pos.y + win_size.y - border_thickness);
+    ImVec2 bb_max = ImVec2(win_pos.x + win_size.x, win_pos.y + win_size.y);
+    ImVec2 cb_min = ImVec2(win_pos.x + win_size.x - border_thickness, win_pos.y + win_size.y - border_thickness);
+
+    auto contains = [](ImVec2 min, ImVec2 max, ImVec2 p) {
+        return p.x >= min.x && p.x <= max.x && p.y >= min.y && p.y <= max.y;
+    };
+
+    if (!resizing) {
+        if (contains(cb_min, bb_max, mouse_pos)) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { resizing = true; resize_dir = 3; }
+        } else if (contains(rb_min, rb_max, mouse_pos)) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { resizing = true; resize_dir = 1; }
+        } else if (contains(bb_min, bb_max, mouse_pos)) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { resizing = true; resize_dir = 2; }
+        }
+    }
+
+    if (resizing) {
+        if (resize_dir == 1)      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        else if (resize_dir == 2) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        else if (resize_dir == 3) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+            ImVec2 delta = ImVec2(mouse_pos.x - last_mouse_pos.x, mouse_pos.y - last_mouse_pos.y);
+            Extent2D ext = m_tvkWindow->GetExtent();
+            u32 width = ext.width, height = ext.height;
+            if (resize_dir == 1 || resize_dir == 3) {
+                i32 nw = static_cast<i32>(width) + static_cast<i32>(delta.x);
+                width = nw > 200 ? static_cast<u32>(nw) : 200u;
+            }
+            if (resize_dir == 2 || resize_dir == 3) {
+                i32 nh = static_cast<i32>(height) + static_cast<i32>(delta.y);
+                height = nh > 100 ? static_cast<u32>(nh) : 100u;
+            }
+            m_tvkWindow->SetSize(width, height);
+        }
+
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+            resizing = false;
+            resize_dir = 0;
+        }
+    }
+
+    last_mouse_pos = mouse_pos;
 }
 
 void ImGuiLayer::EndDockspace() {

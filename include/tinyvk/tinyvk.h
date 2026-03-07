@@ -50,6 +50,7 @@
 #include "assets/icons_font_awesome.h"
 
 // UI - Custom rendering widgets
+#include "ui/imgui_layer.h"
 #include "ui/render_widget.h"
 
 // Version info
