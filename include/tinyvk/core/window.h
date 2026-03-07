@@ -149,6 +149,13 @@ public:
     void SetPosition(i32 x, i32 y);
 
     /**
+     * @brief Begin a compositor-managed interactive move (Wayland/X11).
+     * Call this from a left-button-press handler inside a custom title bar.
+     * On macOS/Windows the drag is handled manually via SetPosition.
+     */
+    void StartDrag();
+
+    /**
      * @brief Set window size
      */
     void SetSize(u32 width, u32 height);

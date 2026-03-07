@@ -161,6 +161,10 @@ void Window::SetPosition(i32 x, i32 y) {
     glfwSetWindowPos(m_Window, x, y);
 }
 
+void Window::StartDrag() {
+    glfwStartInteractiveMove(m_Window);
+}
+
 void Window::SetSize(u32 width, u32 height) {
     glfwSetWindowSize(m_Window, static_cast<int>(width), static_cast<int>(height));
 }
