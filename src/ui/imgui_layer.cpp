@@ -371,13 +371,22 @@ void ImGuiLayer::render_title_bar() {
         if (mouse_over_bar && !mouse_over_buttons &&
             ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
             !ImGui::IsAnyItemHovered()) {
+#ifdef TVK_PLATFORM_APPLE
+            // macOS: manual drag via SetPosition (Cocoa doesn't expose
+            // a performWindowDragWithEvent equivalent through GLFW)
             is_dragging = true;
             double cx, cy;
             glfwGetCursorPos(m_Window, &cx, &cy);
             drag_offset.x = static_cast<float>(cx);
             drag_offset.y = static_cast<float>(cy);
+#else
+            // Linux/Windows: hand the move off to the compositor/WM so it
+            // works correctly on Wayland (glfwSetWindowPos is a no-op there)
+            m_tvkWindow->StartDrag();
+#endif
         }
 
+#ifdef TVK_PLATFORM_APPLE
         if (is_dragging) {
             if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                 double cx, cy;
@@ -393,6 +402,7 @@ void ImGuiLayer::render_title_bar() {
                 is_dragging = false;
             }
         }
+#endif
 
         if (m_TitleBarMenuCb) {
             m_TitleBarMenuCb();
