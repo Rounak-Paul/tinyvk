@@ -58,6 +58,8 @@ public:
     void Begin();
     void End(VkCommandBuffer commandBuffer);
 
+    void SetResizable(bool resizable) { m_resizable = resizable; }
+
     void SetDarkTheme();
     void SetLightTheme();
 
@@ -83,6 +85,7 @@ private:
     VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
     ImGuiConfig m_Config;
     bool m_Initialized = false;
+    bool m_resizable = true;
 };
 
 } // namespace tvk

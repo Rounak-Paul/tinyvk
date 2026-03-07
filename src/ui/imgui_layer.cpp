@@ -351,8 +351,8 @@ void ImGuiLayer::render_title_bar() {
         float menu_bar_height = ImGui::GetFrameHeight();
         ImVec2 mouse_pos = ImGui::GetMousePos();
 
-        const int btn_count = 3;
-        const float pad = 8.0f;
+        const int btn_count = m_resizable ? 3 : 2;
+        const float pad = 2.0f;
         const float spacing = 4.0f;
         const float icon_size = menu_bar_height;
         float total_w = btn_count * icon_size + (btn_count - 1) * spacing;
@@ -422,14 +422,16 @@ void ImGuiLayer::render_title_bar() {
         ImGui::SameLine(0, spacing);
 
         bool is_maximized = m_tvkWindow->IsMaximized();
-        const char* max_icon = is_maximized ? ICON_FA_WINDOW_RESTORE "##maximize" : ICON_FA_WINDOW_MAXIMIZE "##maximize";
-        if (ImGui::Button(max_icon, btn_size)) {
-            if (is_maximized)
-                m_tvkWindow->Restore();
-            else
-                m_tvkWindow->Maximize();
+        if (m_resizable) {
+            const char* max_icon = is_maximized ? ICON_FA_WINDOW_RESTORE "##maximize" : ICON_FA_WINDOW_MAXIMIZE "##maximize";
+            if (ImGui::Button(max_icon, btn_size)) {
+                if (is_maximized)
+                    m_tvkWindow->Restore();
+                else
+                    m_tvkWindow->Maximize();
+            }
+            ImGui::SameLine(0, spacing);
         }
-        ImGui::SameLine(0, spacing);
 
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.80f, 0.10f, 0.10f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.60f, 0.05f, 0.05f, 1.0f));
@@ -458,7 +460,7 @@ void ImGuiLayer::render_title_bar() {
         return p.x >= min.x && p.x <= max.x && p.y >= min.y && p.y <= max.y;
     };
 
-    if (!resizing) {
+    if (!resizing && m_resizable) {
         if (contains(cb_min, bb_max, mouse_pos)) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { resizing = true; resize_dir = 3; }
@@ -471,8 +473,8 @@ void ImGuiLayer::render_title_bar() {
         }
     }
 
-    if (resizing) {
-        if (resize_dir == 1)      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    if (resizing && m_resizable) {
+        if      (resize_dir == 1) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
         else if (resize_dir == 2) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
         else if (resize_dir == 3) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
 

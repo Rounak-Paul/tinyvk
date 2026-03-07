@@ -60,6 +60,7 @@ void App::Initialize(const AppConfig& config) {
     windowConfig.width = config.width;
     windowConfig.height = config.height;
     windowConfig.vsync = config.vsync;
+    windowConfig.resizable = config.resizable;
     windowConfig.maximized = config.maximized;
 
     _window = CreateScope<Window>(windowConfig);
@@ -96,8 +97,7 @@ void App::Initialize(const AppConfig& config) {
     if (!_imguiLayer->Init(_window.get(), _renderer.get(), imguiConfig, [this]() { OnMenuBar(); })) {
         TVK_LOG_FATAL("Failed to initialize ImGui");
         return;
-    }
-
+    }    _imguiLayer->SetResizable(config.resizable);
     _startTime = std::chrono::high_resolution_clock::now();
     _lastFrameTime = _startTime;
 
