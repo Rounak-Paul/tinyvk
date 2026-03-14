@@ -139,6 +139,12 @@ protected:
     virtual void OnMenuBar() {}
 
     /**
+     * @brief Called every frame to draw the toolbar below the title bar
+     * Override to add toolbar buttons between the title bar and the dockspace content
+     */
+    virtual void OnToolbar() {}
+
+    /**
      * @brief Called every frame - override to draw your ImGui UI
      * This is where you write all your ImGui code
      */

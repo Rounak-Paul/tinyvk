@@ -58,12 +58,13 @@ ImGuiLayer::~ImGuiLayer() {
     Cleanup();
 }
 
-bool ImGuiLayer::Init(Window* window, Renderer* renderer, const ImGuiConfig& config, std::function<void()> menuBarCb) {
+bool ImGuiLayer::Init(Window* window, Renderer* renderer, const ImGuiConfig& config, std::function<void()> menuBarCb, std::function<void()> toolbarCb) {
     m_tvkWindow = window;
     m_Window = window->GetNativeHandle();
     m_Renderer = renderer;
     m_Config = config;
     m_TitleBarMenuCb = std::move(menuBarCb);
+    m_ToolbarCb = std::move(toolbarCb);
 
     auto& context = renderer->GetContext();
 
@@ -328,6 +329,12 @@ void ImGuiLayer::BeginDockspace(float bottomOffset, int flags) {
     ImGui::PopStyleColor(2);
 
     render_title_bar();
+
+    if (m_ToolbarCb) {
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        m_ToolbarCb();
+        ImGui::PopStyleVar();
+    }
 
     ImGuiDockNodeFlags dockFlags = flags != 0 ? static_cast<ImGuiDockNodeFlags>(flags) : ImGuiDockNodeFlags_PassthruCentralNode;
     ImGuiID dockspaceId = ImGui::GetID("MainDockSpace");

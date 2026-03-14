@@ -53,7 +53,7 @@ public:
     ImGuiLayer(const ImGuiLayer&) = delete;
     ImGuiLayer& operator=(const ImGuiLayer&) = delete;
 
-    bool Init(Window* window, Renderer* renderer, const ImGuiConfig& config = ImGuiConfig{}, std::function<void()> menuBarCb = {});
+    bool Init(Window* window, Renderer* renderer, const ImGuiConfig& config = ImGuiConfig{}, std::function<void()> menuBarCb = {}, std::function<void()> toolbarCb = {});
     void Cleanup();
     void Begin();
     void End(VkCommandBuffer commandBuffer);
@@ -79,6 +79,7 @@ private:
     void render_title_bar();
 
     std::function<void()> m_TitleBarMenuCb;
+    std::function<void()> m_ToolbarCb;
     Window* m_tvkWindow = nullptr;
     GLFWwindow* m_Window = nullptr;
     Renderer* m_Renderer = nullptr;

@@ -94,7 +94,7 @@ void App::Initialize(const AppConfig& config) {
     imguiConfig.enableKeyboardNav = config.enableKeyboardNav;
 
     _imguiLayer = CreateScope<ImGuiLayer>();
-    if (!_imguiLayer->Init(_window.get(), _renderer.get(), imguiConfig, [this]() { OnMenuBar(); })) {
+    if (!_imguiLayer->Init(_window.get(), _renderer.get(), imguiConfig, [this]() { OnMenuBar(); }, [this]() { OnToolbar(); })) {
         TVK_LOG_FATAL("Failed to initialize ImGui");
         return;
     }    _imguiLayer->SetResizable(config.resizable);
