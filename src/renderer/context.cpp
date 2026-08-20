@@ -337,6 +337,9 @@ bool VulkanContext::CreateLogicalDevice(const ContextConfig& config) {
     if (supportedFeatures.wideLines) {
         deviceFeatures.wideLines = VK_TRUE;
     }
+    if (supportedFeatures.independentBlend) {
+        deviceFeatures.independentBlend = VK_TRUE;
+    }
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
